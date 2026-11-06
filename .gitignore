@@ -1,0 +1,21 @@
+# Binarios y carpetas de compilación
+bin/
+out/
+target/
+*.class
+
+# IDEs y Editores
+.idea/
+*.iml
+.vscode/
+.project
+.classpath
+.settings/
+*.nbproject/
+nbproject/private/
+
+# Archivos temporales de sistema
+.DS_Store
+Thumbs.db
+sources.txt
+*.log

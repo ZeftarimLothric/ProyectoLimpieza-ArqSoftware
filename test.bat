@@ -1,0 +1,7 @@
+@echo off
+echo ========================================================
+echo  Ejecutando Pruebas Arquitectonicas y Verificacion MVC
+echo ========================================================
+
+java -ea -cp bin com.saltillo.limpieza.test.ArchitectureVerificationTest
+pause
