@@ -10,8 +10,9 @@ import java.awt.event.ActionEvent;
 /**
  * Controlador Principal de Navegación y Gestión de Sesión.
  * 
- * Cumplimiento de Contratos Issue #4 y #15:
+ * Cumplimiento de Contratos Issue #4, #15 y #16:
  * - Se integra con SesionUsuario (Singleton).
+ * - Control de enrutamiento para Dashboard, Consulta y módulos externos.
  * - Cierre seguro de sesión destruyendo la instancia de sesión en memoria.
  */
 public class MainNavigationController {
@@ -31,6 +32,7 @@ public class MainNavigationController {
 
         // Vincular eventos del menú lateral hacia este controlador (Strict MVC)
         this.shellView.setNavDashboardListener(e -> navegarA("DASHBOARD"));
+        this.shellView.setNavConsultaListener(e -> navegarA("CONSULTA"));
         this.shellView.setNavActividadesListener(e -> navegarA("ACTIVIDADES"));
         this.shellView.setNavCuadrillasListener(e -> navegarA("CUADRILLAS"));
         this.shellView.setNavColoniasListener(e -> navegarA("COLONIAS"));

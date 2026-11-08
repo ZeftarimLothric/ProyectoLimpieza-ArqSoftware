@@ -42,6 +42,7 @@ public class MainShellView extends JFrame {
 
     // Acciones de navegación
     private JButton btnNavDashboard;
+    private JButton btnNavConsulta;
     private JButton btnNavActividades;
     private JButton btnNavCuadrillas;
     private JButton btnNavColonias;
@@ -200,6 +201,10 @@ public class MainShellView extends JFrame {
                 UiIcons.getDashboardIcon(COLOR_TEXT_MUTED, 16),
                 UiIcons.getDashboardIcon(Color.WHITE, 16));
 
+        btnNavConsulta = crearBotonNavegacion("Consulta Actividades", "CONSULTA",
+                UiIcons.getSearchIcon(COLOR_TEXT_MUTED, 16),
+                UiIcons.getSearchIcon(Color.WHITE, 16));
+
         btnNavActividades = crearBotonNavegacion("Registro Actividades", "ACTIVIDADES",
                 UiIcons.getActividadesIcon(COLOR_TEXT_MUTED, 16),
                 UiIcons.getActividadesIcon(Color.WHITE, 16));
@@ -213,6 +218,8 @@ public class MainShellView extends JFrame {
                 UiIcons.getColoniasIcon(Color.WHITE, 16));
 
         pnlMenu.add(btnNavDashboard);
+        pnlMenu.add(Box.createVerticalStrut(6));
+        pnlMenu.add(btnNavConsulta);
         pnlMenu.add(Box.createVerticalStrut(6));
         pnlMenu.add(btnNavActividades);
         pnlMenu.add(Box.createVerticalStrut(6));
@@ -328,6 +335,10 @@ public class MainShellView extends JFrame {
 
     public void setNavDashboardListener(ActionListener al) {
         btnNavDashboard.addActionListener(al);
+    }
+
+    public void setNavConsultaListener(ActionListener al) {
+        btnNavConsulta.addActionListener(al);
     }
 
     public void setNavActividadesListener(ActionListener al) {

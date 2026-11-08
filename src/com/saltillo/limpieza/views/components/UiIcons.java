@@ -92,6 +92,43 @@ public class UiIcons {
     }
 
     /**
+     * Icono de Búsqueda / Consulta (Lupa).
+     */
+    public static Icon getSearchIcon(Color color, int size) {
+        return new VectorIcon(size, size, (g2, w, h) -> {
+            g2.setColor(color);
+            g2.setStroke(new BasicStroke(1.6f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+            int r = (int) (w * 0.35);
+            int cx = (int) (w * 0.42);
+            int cy = (int) (h * 0.42);
+            g2.drawOval(cx - r, cy - r, r * 2, r * 2);
+            // Mango de la lupa
+            int x1 = (int) (cx + r * 0.7);
+            int y1 = (int) (cy + r * 0.7);
+            g2.drawLine(x1, y1, w - 2, h - 2);
+        });
+    }
+
+    /**
+     * Icono de Filtro (Embudo).
+     */
+    public static Icon getFilterIcon(Color color, int size) {
+        return new VectorIcon(size, size, (g2, w, h) -> {
+            g2.setColor(color);
+            g2.setStroke(new BasicStroke(1.5f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+            Path2D.Float funnel = new Path2D.Float();
+            funnel.moveTo(2, 3);
+            funnel.lineTo(w - 3, 3);
+            funnel.lineTo(w * 0.58f, h * 0.52f);
+            funnel.lineTo(w * 0.58f, h - 2);
+            funnel.lineTo(w * 0.42f, h - 4);
+            funnel.lineTo(w * 0.42f, h * 0.52f);
+            funnel.closePath();
+            g2.draw(funnel);
+        });
+    }
+
+    /**
      * Icono para Cerrar Sesión (Puerta con flecha de salida).
      */
     public static Icon getLogoutIcon(Color color, int size) {
