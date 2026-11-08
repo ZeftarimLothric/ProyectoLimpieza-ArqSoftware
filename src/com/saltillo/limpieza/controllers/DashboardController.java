@@ -82,15 +82,24 @@ public class DashboardController implements IObserver<ActividadEventDTO> {
         List<String> nombres = repository.obtenerNombresCuadrillas();
         if (nombres.isEmpty()) return;
 
-        // Elegir aleatoriamente una cuadrilla, colonia y tipo de servicio de Saltillo
+        // Elegir aleatoriamente una cuadrilla, colonias y tipo de servicio de Saltillo
         String cuadrillaElegida = nombres.get(random.nextInt(nombres.size()));
         int idCuadrilla = repository.obtenerIdPorNombre(cuadrillaElegida);
-        String colonia = coloniasSaltillo[random.nextInt(coloniasSaltillo.length)];
+        String col1 = coloniasSaltillo[random.nextInt(coloniasSaltillo.length)];
+        List<String> colonias = new java.util.ArrayList<>();
+        colonias.add(col1);
+        if (random.nextBoolean()) {
+            String col2 = coloniasSaltillo[random.nextInt(coloniasSaltillo.length)];
+            if (!col2.equalsIgnoreCase(col1)) {
+                colonias.add(col2);
+            }
+        }
+
         String tipo = tiposLimpieza[random.nextInt(tiposLimpieza.length)];
         String notas = "Operativo extraordinario de supervisión municipal.";
 
         // El repositorio guarda y emite el evento al ActividadEventBus
-        repository.registrarActividad(idCuadrilla, colonia, tipo, notas);
+        repository.registrarActividad(idCuadrilla, colonias, tipo, notas);
     }
 
     /**
