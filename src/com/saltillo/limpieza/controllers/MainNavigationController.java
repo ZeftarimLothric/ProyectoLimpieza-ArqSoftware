@@ -1,5 +1,7 @@
 package com.saltillo.limpieza.controllers;
 
+import com.saltillo.limpieza.models.entities.Usuario;
+import com.saltillo.limpieza.session.SesionUsuario;
 import com.saltillo.limpieza.views.MainShellView;
 
 import javax.swing.*;
@@ -8,27 +10,24 @@ import java.awt.event.ActionEvent;
 /**
  * Controlador Principal de Navegación y Gestión de Sesión.
  * 
- * Responsabilidades:
- * 1. Control de enrutamiento modular entre las vistas de los 4 integrantes.
- * 2. Cumplimiento del Requisito 3 del Profesor:
- *    "Opción para cerrar sistema (Seguridad de la aplicación, cerrar base de datos
- *    y destruir variables globales de sesión) y Menú para navegar entre opciones."
+ * Cumplimiento de Contratos Issue #4 y #15:
+ * - Se integra con SesionUsuario (Singleton).
+ * - Cierre seguro de sesión destruyendo la instancia de sesión en memoria.
  */
 public class MainNavigationController {
 
     private final MainShellView shellView;
 
-    // Variables de estado de sesión global (cumplimiento de seguridad y destrucción)
-    private String sesionUsuarioActivo;
-    private String sesionRolActivo;
-    private long sesionTimestampInicio;
-    private boolean sesionAutenticada;
-
     public MainNavigationController(MainShellView shellView) {
         this.shellView = shellView;
 
-        // Inicializar sesión por defecto (Admin de demostración)
-        iniciarSesion("admin.saltillo@municipio.gob", "ADMINISTRADOR_SERVICIOS");
+        // Inicializar sesión por defecto si no existe una previa
+        if (!SesionUsuario.getInstance().estaActiva()) {
+            Usuario demoUser = new Usuario(1, "Lic. Administrador Municipal", "admin.saltillo@municipio.gob", "ADMINISTRADOR");
+            SesionUsuario.getInstance().iniciar(demoUser);
+        }
+
+        actualizarVistaUsuario();
 
         // Vincular eventos del menú lateral hacia este controlador (Strict MVC)
         this.shellView.setNavDashboardListener(e -> navegarA("DASHBOARD"));
@@ -38,23 +37,20 @@ public class MainNavigationController {
         this.shellView.setCerrarSesionListener(this::onCerrarSesionSolicitado);
     }
 
-    /**
-     * Inicia una sesión autenticada estableciendo las variables de estado.
-     */
-    public void iniciarSesion(String usuario, String rol) {
-        this.sesionUsuarioActivo = usuario;
-        this.sesionRolActivo = rol;
-        this.sesionTimestampInicio = System.currentTimeMillis();
-        this.sesionAutenticada = true;
-
-        this.shellView.setUsuarioSesion(this.sesionUsuarioActivo);
+    public void actualizarVistaUsuario() {
+        Usuario u = SesionUsuario.getInstance().getUsuarioActual();
+        if (u != null) {
+            this.shellView.setUsuarioSesion(u.getUsuario());
+        } else {
+            this.shellView.setUsuarioSesion("Sin sesión");
+        }
     }
 
     /**
      * Enruta el Content Host hacia el módulo solicitado.
      */
     public void navegarA(String claveModulo) {
-        if (!sesionAutenticada) {
+        if (!SesionUsuario.getInstance().estaActiva()) {
             JOptionPane.showMessageDialog(shellView,
                     "Acceso denegado. No existe una sesión activa.",
                     "Seguridad del Sistema",
@@ -65,9 +61,9 @@ public class MainNavigationController {
     }
 
     /**
-     * REQUISITO 3 DEL PROFESOR:
-     * Cierre seguro de sesión: destruye variables de sesión, limpia memoria y
-     * finaliza la ejecución o redirige a la pantalla de acceso.
+     * REQUISITO 3 DEL PROFESOR & ISSUE #15:
+     * Cierre seguro de sesión: destruye variables de sesión mediante SesionUsuario,
+     * limpia memoria y finaliza recursos.
      */
     private void onCerrarSesionSolicitado(ActionEvent e) {
         int confirm = JOptionPane.showConfirmDialog(shellView,
@@ -83,20 +79,18 @@ public class MainNavigationController {
     }
 
     /**
-     * Destruye de forma estricta las variables globales de sesión para garantizar seguridad.
+     * Destruye de forma estricta la sesión global en memoria.
      */
     public void destruirSesionYSeguridad() {
-        System.out.println("[Seguridad] Destruyendo variables de sesión para: " + sesionUsuarioActivo);
+        Usuario u = SesionUsuario.getInstance().getUsuarioActual();
+        String nombreUser = (u != null) ? u.getUsuario() : "Desconocido";
 
-        this.sesionUsuarioActivo = null;
-        this.sesionRolActivo = null;
-        this.sesionTimestampInicio = 0L;
-        this.sesionAutenticada = false;
+        System.out.println("[Seguridad] Destruyendo sesión en memoria para: " + nombreUser);
+        SesionUsuario.getInstance().destruir();
 
-        // Limpieza de interfaz y mensaje de cierre
         JOptionPane.showMessageDialog(shellView,
                 "Sesión cerrada correctamente.\n" +
-                "Variables de seguridad destruidas.\n" +
+                "Variables de seguridad destruidas mediante SesionUsuario.\n" +
                 "¡Hasta pronto!",
                 "Sesión Finalizada",
                 JOptionPane.INFORMATION_MESSAGE);
@@ -106,6 +100,6 @@ public class MainNavigationController {
     }
 
     public boolean isSesionAutenticada() {
-        return sesionAutenticada;
+        return SesionUsuario.getInstance().estaActiva();
     }
 }

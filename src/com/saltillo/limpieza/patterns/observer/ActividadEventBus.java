@@ -6,15 +6,14 @@ import java.util.List;
 
 /**
  * Event Bus desacoplado que implementa el patrón Observer (ISubject).
- * Actúa como intermediario central de eventos de actividades de limpieza.
+ * Actúa como intermediario central para el ciclo de vida de actividades de limpieza.
  * 
  * =========================================================================
- * CONEXIÓN PARA EL INTEGRANTE 3 (Operaciones & Evidencias):
- * Cuando el Integrante 3 guarde una nueva actividad en su módulo, simplemente
- * debe ejecutar la siguiente línea de código para que el Dashboard se actualice:
+ * CONTRATO PARA EL INTEGRANTE 3 (Angel - Issue #14: Publicar eventos):
+ * Cuando Angel cree, actualice o elimine una actividad, simplemente invoca:
  * 
- * ActividadEventBus.getInstance().publicarNuevaActividad(
- *     new ActividadEventDTO(idCuadrilla, nombreCuadrilla, colonia, tipoLimpieza, notas)
+ * ActividadEventBus.getInstance().publicarEvento(
+ *     new ActividadEventDTO(idCuadrilla, nombreCuadrilla, colonias, tipo, notas, tipoEvento)
  * );
  * =========================================================================
  */
@@ -62,11 +61,20 @@ public class ActividadEventBus implements ISubject<ActividadEventDTO> {
     }
 
     /**
-     * Método semántico de conveniencia para publicar eventos de nuevas actividades.
+     * Publica cualquier tipo de evento de actividad (creada, actualizada, eliminada).
      * 
-     * @param event DTO con la información de la actividad recién registrada.
+     * @param event DTO con la información y tipo del evento.
+     */
+    public void publicarEvento(ActividadEventDTO event) {
+        notifyObservers(event);
+    }
+
+    /**
+     * Método semántico de conveniencia para publicar eventos de creación (retrocompatibilidad).
+     * 
+     * @param event DTO con la información de la nueva actividad.
      */
     public void publicarNuevaActividad(ActividadEventDTO event) {
-        notifyObservers(event);
+        publicarEvento(event);
     }
 }

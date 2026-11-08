@@ -1,21 +1,23 @@
 package com.saltillo.limpieza.repositories;
 
+import com.saltillo.limpieza.models.dto.ActividadDetalleDTO;
 import com.saltillo.limpieza.models.dto.CuadrillaResumenDTO;
 import com.saltillo.limpieza.models.dto.DashboardKpisDTO;
+import com.saltillo.limpieza.models.dto.FiltroActividadDTO;
 import java.util.List;
 
 /**
- * Contrato de acceso a datos para las métricas del Dashboard Ejecutivo.
+ * Contrato de acceso a datos para las métricas del Dashboard Ejecutivo y consultas.
  * 
  * Implementa el principio de Inversión de Dependencias (DIP de SOLID).
- * Permite que el Dashboard funcione sin depender de la base de datos real
- * que aún están construyendo el Integrante 1 (Esquema/Conexión) e Integrante 2 (DAOs).
  * 
  * =========================================================================
- * CONTRATO PARA INTEGRANTES 1 Y 2:
- * Cuando la base de datos MySQL/SQL esté lista, basta con crear una clase:
- * public class SqlDashboardRepository implements IDashboardRepository { ... }
- * e implementarla realizando las consultas agregadas (COUNT, GROUP BY cuadrilla).
+ * CONTRATO PARA XIMENA (Issue #17: SqlDashboardRepository):
+ * Para implementar este repositorio con MySQL, crear 'SqlDashboardRepository'
+ * implementando estos métodos:
+ * - obtenerKpis(): Métricas agregadas (COUNT, AVG).
+ * - obtenerResumenPorCuadrillas(): Resumen con GROUP BY cuadrilla_id.
+ * - buscarActividades(FiltroActividadDTO): Consulta dinámica WHERE con los filtros.
  * =========================================================================
  */
 public interface IDashboardRepository {
@@ -35,13 +37,25 @@ public interface IDashboardRepository {
     List<CuadrillaResumenDTO> obtenerResumenPorCuadrillas();
 
     /**
-     * Registra una nueva actividad en el almacén de datos y dispara el evento
-     * correspondiente para los observadores.
+     * Busca y filtra actividades de limpieza según los criterios especificados.
      * 
-     * @param idCuadrilla Identificador numérico de la cuadrilla asignada.
-     * @param colonia Nombre de la colonia intervenida (catálogo Saltillo / Sepomex).
-     * @param tipoLimpieza Tipo de servicio (Barrido, Deshierbe, Retiro de escombros, etc.).
-     * @param observaciones Notas u observaciones de la cuadrilla.
+     * @param filtro DTO con criterios opcionales de cuadrilla, colonia, estado y fechas.
+     * @return Lista de actividades que cumplen con los criterios.
+     */
+    List<ActividadDetalleDTO> buscarActividades(FiltroActividadDTO filtro);
+
+    /**
+     * Registra una nueva actividad en el almacén de datos (soporta múltiples colonias).
+     * 
+     * @param idCuadrilla Identificador de la cuadrilla asignada.
+     * @param colonias Lista de colonias intervenidas (Requisito 8 rúbrica).
+     * @param tipoLimpieza Tipo de servicio de limpieza.
+     * @param observaciones Notas u observaciones operativas.
+     */
+    void registrarActividad(int idCuadrilla, List<String> colonias, String tipoLimpieza, String observaciones);
+
+    /**
+     * Sobrecarga de conveniencia para registrar actividad en una sola colonia.
      */
     void registrarActividad(int idCuadrilla, String colonia, String tipoLimpieza, String observaciones);
 
