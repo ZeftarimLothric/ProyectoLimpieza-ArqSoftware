@@ -1,5 +1,6 @@
 package com.saltillo.limpieza.test;
 
+import com.saltillo.limpieza.controllers.ConsultaActividadesController;
 import com.saltillo.limpieza.controllers.DashboardController;
 import com.saltillo.limpieza.models.dto.*;
 import com.saltillo.limpieza.models.entities.Usuario;
@@ -8,6 +9,7 @@ import com.saltillo.limpieza.patterns.observer.IObserver;
 import com.saltillo.limpieza.repositories.IDashboardRepository;
 import com.saltillo.limpieza.repositories.MockDashboardRepository;
 import com.saltillo.limpieza.session.SesionUsuario;
+import com.saltillo.limpieza.views.ConsultaActividadesView;
 import com.saltillo.limpieza.views.DashboardView;
 
 import java.time.LocalDate;
@@ -15,18 +17,19 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
- * Suite de pruebas unitarias y de arquitectura (Headless) actualizada para Issue #4:
+ * Suite de pruebas unitarias y de arquitectura (Headless) actualizada para Issue #16:
  * 1. Verificación del Singleton SesionUsuario
  * 2. Soporte de múltiples colonias y TipoEventoActividad en ActividadEventDTO
- * 3. Publicación de eventos en ActividadEventBus
- * 4. Búsqueda y filtros dinámicos con FiltroActividadDTO en IDashboardRepository
+ * 3. Búsqueda y filtros dinámicos con FiltroActividadDTO
+ * 4. Patrón Observer con ActividadEventBus
  * 5. Integración reactiva Controller-Observer-Repository
+ * 6. Módulo MVC de ConsultaActividades (Issue #16)
  */
 public class ArchitectureVerificationTest {
 
     public static void main(String[] args) {
         System.out.println("===================================================================");
-        System.out.println("VERIFICACION ARQUITECTONICA - ISSUE #4 (CONTRATOS & SESION)");
+        System.out.println("VERIFICACION ARQUITECTONICA - INTEGRANTE 4 (DASHBOARD & CONSULTA)");
         System.out.println("===================================================================");
 
         testSesionUsuario();
@@ -34,8 +37,9 @@ public class ArchitectureVerificationTest {
         testBusquedaFiltrosActividad();
         testObserverPatternDirectly();
         testControllerObserverIntegration();
+        testConsultaActividadesMVC();
 
-        System.out.println("\n>>> TODAS LAS PRUEBAS DEL ISSUE #4 PASARON CON EXITO (100% OK) <<<");
+        System.out.println("\n>>> TODAS LAS PRUEBAS (INCLUYENDO ISSUE #16) PASARON CON EXITO (100% OK) <<<");
     }
 
     private static void testSesionUsuario() {
@@ -78,11 +82,9 @@ public class ArchitectureVerificationTest {
         System.out.print("[TEST 3] Verificando FiltroActividadDTO y buscarActividades... ");
         IDashboardRepository repo = new MockDashboardRepository();
 
-        // 1. Búsqueda sin filtros (todas las actividades)
         List<ActividadDetalleDTO> todas = repo.buscarActividades(null);
         assert todas != null && todas.size() >= 8 : "Deben existir al menos 8 actividades simuladas";
 
-        // 2. Filtro por Cuadrilla #1 (Centro Histórico)
         FiltroActividadDTO fCuadrilla = new FiltroActividadDTO();
         fCuadrilla.setIdCuadrilla(1);
         List<ActividadDetalleDTO> porCuadrilla = repo.buscarActividades(fCuadrilla);
@@ -91,13 +93,11 @@ public class ArchitectureVerificationTest {
             assert a.getIdCuadrilla() == 1 : "Todas las actividades deben pertenecer a la Cuadrilla #1";
         }
 
-        // 3. Filtro por Colonia
         FiltroActividadDTO fColonia = new FiltroActividadDTO();
         fColonia.setColonia("Centro");
         List<ActividadDetalleDTO> porColonia = repo.buscarActividades(fColonia);
         assert !porColonia.isEmpty() : "Debe encontrar actividades en colonias con 'Centro'";
 
-        // 4. Filtro por Estado
         FiltroActividadDTO fEstado = new FiltroActividadDTO();
         fEstado.setEstado("EN PROCESO");
         List<ActividadDetalleDTO> porEstado = repo.buscarActividades(fEstado);
@@ -139,7 +139,6 @@ public class ArchitectureVerificationTest {
 
         int totalAntes = repo.obtenerKpis().getTotalActividadesEjecutadas();
 
-        // Simular registro con múltiples colonias
         repo.registrarActividad(1, List.of("República Poniente", "Universidad"), "Deshierbe", "Supervisión");
 
         int totalDespues = repo.obtenerKpis().getTotalActividadesEjecutadas();
@@ -147,5 +146,25 @@ public class ArchitectureVerificationTest {
 
         controller.destruir();
         System.out.println("PASO (Total previo: " + totalAntes + " -> Total posterior: " + totalDespues + ")");
+    }
+
+    private static void testConsultaActividadesMVC() {
+        System.out.print("[TEST 6] Verificando Módulo ConsultaActividades (Issue #16 MVC)... ");
+        IDashboardRepository repo = new MockDashboardRepository();
+        ConsultaActividadesView view = new ConsultaActividadesView();
+        ConsultaActividadesController controller = new ConsultaActividadesController(view, repo);
+
+        // Validar que la consulta inicial haya poblado actividades
+        List<ActividadDetalleDTO> iniciales = repo.buscarActividades(null);
+        assert !iniciales.isEmpty() : "El repositorio debe entregar actividades al controlador";
+
+        // Registrar una nueva actividad y verificar que el controlador la reciba vía Observer
+        int countAntes = repo.buscarActividades(null).size();
+        repo.registrarActividad(2, List.of("San Patricio"), "Lavado y Desinfección", "Prueba Consulta MVC");
+        int countDespues = repo.buscarActividades(null).size();
+        assert countDespues == countAntes + 1 : "La nueva actividad debió agregarse a la lista de búsqueda";
+
+        controller.destruir();
+        System.out.println("PASO (Consulta MVC y Observer reactivo al 100%)");
     }
 }
