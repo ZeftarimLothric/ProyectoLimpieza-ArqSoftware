@@ -1,14 +1,20 @@
 package com.saltillo.limpieza;
 
+import com.saltillo.limpieza.controllers.ActividadController;
 import com.saltillo.limpieza.controllers.ConsultaActividadesController;
 import com.saltillo.limpieza.controllers.DashboardController;
 import com.saltillo.limpieza.controllers.MainNavigationController;
 import com.saltillo.limpieza.repositories.IDashboardRepository;
+import com.saltillo.limpieza.repositories.MockActividadRepository;
 import com.saltillo.limpieza.repositories.MockDashboardRepository;
+import com.saltillo.limpieza.repositories.MockEvidenciaRepository;
+import com.saltillo.limpieza.services.EvidenciaStorageService;
 import com.saltillo.limpieza.views.ConsultaActividadesView;
 import com.saltillo.limpieza.views.DashboardView;
 import com.saltillo.limpieza.views.MainShellView;
 import com.saltillo.limpieza.views.PlaceholderModuleView;
+import com.saltillo.limpieza.views.actividades.ActividadFormView;
+import com.saltillo.limpieza.views.actividades.ActividadListView;
 
 import javax.swing.*;
 
@@ -28,12 +34,6 @@ import javax.swing.*;
  *        IDashboardRepository dashboardRepo = new MockDashboardRepository();
  *    por:
  *        IDashboardRepository dashboardRepo = new SqlDashboardRepository();
- * 
- * 2. INTEGRANTE 3 (Angel - Issue #10):
- *    Al terminar la vista real 'RegistroActividadesView', sustituir en la línea 75:
- *        shellView.registrarModulo("ACTIVIDADES", new PlaceholderModuleView(...));
- *    por:
- *        shellView.registrarModulo("ACTIVIDADES", new RegistroActividadesView(...));
  * =============================================================================
  */
 public class Main {
@@ -53,17 +53,9 @@ public class Main {
             MainShellView shellView = new MainShellView();
             DashboardView dashboardView = new DashboardView();
             ConsultaActividadesView consultaView = new ConsultaActividadesView();
+            ActividadListView actividadesView = new ActividadListView();
 
             // Placeholders modulares para los compañeros de equipo
-            PlaceholderModuleView moduloActividades = new PlaceholderModuleView(
-                    "ACTIVIDADES",
-                    "Módulo: Registro de Actividades & Evidencias",
-                    "Integrante 3 (Operaciones & Evidencias)",
-                    "Captura de actividades de limpieza, asignación de cuadrillas, " +
-                    "asociación de colonias Sepomex y carga de evidencia fotográfica.",
-                    dashboardRepo
-            );
-
             PlaceholderModuleView moduloCuadrillas = new PlaceholderModuleView(
                     "CUADRILLAS",
                     "Módulo: Catálogo de Cuadrillas y Jefes",
@@ -85,13 +77,21 @@ public class Main {
             // 3. REGISTRO MODULAR EN EL CONTENT HOST DEL SHELL (Desacoplamiento total)
             shellView.registrarModulo("DASHBOARD", dashboardView);
             shellView.registrarModulo("CONSULTA", consultaView);
-            shellView.registrarModulo("ACTIVIDADES", moduloActividades);
+            shellView.registrarModulo("ACTIVIDADES", actividadesView);
             shellView.registrarModulo("CUADRILLAS", moduloCuadrillas);
             shellView.registrarModulo("COLONIAS", moduloColonias);
 
             // 4. CONTROLADORES (Orquestación MVC y Patrón Observer)
             DashboardController dashboardController = new DashboardController(dashboardView, dashboardRepo);
             ConsultaActividadesController consultaController = new ConsultaActividadesController(consultaView, dashboardRepo);
+            ActividadController actividadController = new ActividadController(
+                    actividadesView,
+                    new ActividadFormView(),
+                    new MockActividadRepository(),
+                    new MockEvidenciaRepository(),
+                    dashboardRepo,
+                    new EvidenciaStorageService()
+            );
             MainNavigationController navigationController = new MainNavigationController(shellView);
 
             // 5. NAVEGAR A LA VISTA INICIAL (Dashboard Ejecutivo) Y MOSTRAR

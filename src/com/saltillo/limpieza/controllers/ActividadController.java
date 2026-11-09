@@ -1,0 +1,215 @@
+package com.saltillo.limpieza.controllers;
+
+import com.saltillo.limpieza.models.dto.ActividadDetalleDTO;
+import com.saltillo.limpieza.repositories.IActividadRepository;
+import com.saltillo.limpieza.repositories.IDashboardRepository;
+import com.saltillo.limpieza.repositories.IEvidenciaRepository;
+import com.saltillo.limpieza.services.EvidenciaInvalidaException;
+import com.saltillo.limpieza.services.EvidenciaStorageService;
+import com.saltillo.limpieza.views.actividades.ActividadFormView;
+import com.saltillo.limpieza.views.actividades.ActividadListView;
+
+import java.awt.event.ActionEvent;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
+import java.time.format.ResolverStyle;
+import java.util.ArrayList;
+import java.util.List;
+
+/**
+ * Controlador del CRUD de Actividades (Integrante 3 - Issue #10).
+ *
+ * Arquitectura MVC Estricta: las vistas solo hablan con este controlador, que
+ * valida los datos del formulario y coordina repositorios y evidencias.
+ *
+ * TODO(#11): capturar las colonias con ColoniaSelectorDialog; por ahora se conservan las existentes.
+ * TODO(#14): publicar en ActividadEventBus al crear, actualizar y eliminar.
+ */
+public class ActividadController {
+
+    private static final int SIN_ACTIVIDAD = 0;
+    private static final String ESTADO_COMPLETADA = "COMPLETADA";
+    private static final DateTimeFormatter FORMATO_FECHA =
+            DateTimeFormatter.ofPattern("dd/MM/uuuu HH:mm").withResolverStyle(ResolverStyle.STRICT);
+
+    private final ActividadListView listView;
+    private final ActividadFormView formView;
+    private final IActividadRepository actividadRepository;
+    private final IEvidenciaRepository evidenciaRepository;
+    private final IDashboardRepository catalogoCuadrillas; // TODO(#3): cambiar por ICuadrillaRepository
+    private final EvidenciaStorageService evidenciaService;
+    private final EvidenciaController evidenciaController;
+
+    private int idEnEdicion = SIN_ACTIVIDAD;
+    private List<String> coloniasEnEdicion = new ArrayList<>();
+
+    public ActividadController(ActividadListView listView, ActividadFormView formView,
+                               IActividadRepository actividadRepository, IEvidenciaRepository evidenciaRepository,
+                               IDashboardRepository catalogoCuadrillas, EvidenciaStorageService evidenciaService) {
+        this.listView = listView;
+        this.formView = formView;
+        this.actividadRepository = actividadRepository;
+        this.evidenciaRepository = evidenciaRepository;
+        this.catalogoCuadrillas = catalogoCuadrillas;
+        this.evidenciaService = evidenciaService;
+        this.evidenciaController = new EvidenciaController(formView.getEvidenciaPanel(), evidenciaService);
+
+        this.formView.poblarCuadrillas(catalogoCuadrillas.obtenerNombresCuadrillas());
+        this.formView.poblarTipos(actividadRepository.listarTiposActividad());
+
+        this.listView.setNuevoListener(this::onNuevoSolicitado);
+        this.listView.setEditarListener(this::onEditarSolicitado);
+        this.listView.setEliminarListener(this::onEliminarSolicitado);
+        this.listView.setFiltroEstadoListener(this::onFiltroCambiado);
+        this.formView.setGuardarListener(this::onGuardarSolicitado);
+        this.formView.setCancelarListener(this::onCancelarSolicitado);
+
+        refrescarLista();
+    }
+
+    public void nuevaActividad() {
+        idEnEdicion = SIN_ACTIVIDAD;
+        coloniasEnEdicion = new ArrayList<>();
+        formView.limpiar();
+        evidenciaController.cargar(List.of());
+        formView.abrir(listView, "Nueva actividad");
+    }
+
+    public void editarActividad(int idActividad) {
+        ActividadDetalleDTO actividad = actividadRepository.buscarPorId(idActividad);
+        if (actividad == null) {
+            listView.mostrarError("La actividad seleccionada ya no existe.");
+            refrescarLista();
+            return;
+        }
+
+        idEnEdicion = idActividad;
+        coloniasEnEdicion = new ArrayList<>(actividad.getColonias());
+        formView.mostrarDatos(actividad.getNombreCuadrilla(), actividad.getTipoLimpieza(), actividad.getLugarEspecifico(),
+                actividad.getFechaHoraFormateada(), actividad.getFechaRealizacionFormateada(),
+                actividad.getEstado(), actividad.getObservaciones());
+        evidenciaController.cargar(evidenciaRepository.listarPorActividad(idActividad));
+        formView.abrir(listView, "Editar actividad #" + idActividad);
+    }
+
+    public void guardar() {
+        List<String> errores = new ArrayList<>();
+        String cuadrilla = formView.getCuadrilla();
+        String tipo = formView.getTipo();
+        String lugar = formView.getLugar().trim();
+        String estado = formView.getEstado();
+
+        if (cuadrilla == null) errores.add("Selecciona una cuadrilla.");
+        if (tipo == null) errores.add("Selecciona un tipo de actividad.");
+        if (lugar.isEmpty()) errores.add("Escribe el lugar específico.");
+
+        LocalDateTime programada = leerFecha(formView.getFechaProgramada(), "programada", errores);
+        LocalDateTime realizada = leerFecha(formView.getFechaRealizacion(), "de realización", errores);
+        if (formView.getFechaProgramada().isBlank()) errores.add("Escribe la fecha programada.");
+        if (ESTADO_COMPLETADA.equals(estado) && formView.getFechaRealizacion().isBlank()) {
+            errores.add("Una actividad completada necesita fecha de realización.");
+        }
+
+        if (!errores.isEmpty()) {
+            formView.mostrarError(String.join("\n", errores));
+            return;
+        }
+
+        ActividadDetalleDTO actividad = new ActividadDetalleDTO(idEnEdicion, catalogoCuadrillas.obtenerIdPorNombre(cuadrilla),
+                cuadrilla, coloniasEnEdicion, tipo, lugar, estado, programada, formView.getDescripcion().trim(), realizada);
+
+        int idActividad = idEnEdicion;
+        if (idEnEdicion == SIN_ACTIVIDAD) {
+            idActividad = actividadRepository.guardar(actividad);
+        } else {
+            actividadRepository.actualizar(actividad);
+        }
+        evidenciaRepository.reemplazar(idActividad, evidenciaController.getEvidencias());
+        evidenciaController.confirmarCambios();
+
+        formView.cerrar();
+        refrescarLista();
+    }
+
+    public void cancelar() {
+        evidenciaController.descartarCambios();
+        formView.cerrar();
+    }
+
+    public void eliminarActividad(int idActividad) {
+        if (!listView.confirmarEliminacion("¿Eliminar la actividad #" + idActividad + " y sus evidencias?")) {
+            return;
+        }
+
+        List<String> evidencias = evidenciaRepository.listarPorActividad(idActividad);
+        actividadRepository.eliminar(idActividad);
+        evidenciaRepository.eliminarPorActividad(idActividad);
+        refrescarLista();
+        eliminarArchivos(evidencias);
+    }
+
+    public void refrescarLista() {
+        listView.mostrarActividades(actividadRepository.listar(listView.getFiltroEstado()));
+    }
+
+    private void onNuevoSolicitado(ActionEvent e) {
+        nuevaActividad();
+    }
+
+    private void onEditarSolicitado(ActionEvent e) {
+        Integer id = listView.getIdSeleccionado();
+        if (id == null) {
+            listView.mostrarError("Selecciona una actividad para editarla.");
+            return;
+        }
+        editarActividad(id);
+    }
+
+    private void onEliminarSolicitado(ActionEvent e) {
+        Integer id = listView.getIdSeleccionado();
+        if (id == null) {
+            listView.mostrarError("Selecciona una actividad para eliminarla.");
+            return;
+        }
+        eliminarActividad(id);
+    }
+
+    private void onFiltroCambiado(ActionEvent e) {
+        refrescarLista();
+    }
+
+    private void onGuardarSolicitado(ActionEvent e) {
+        guardar();
+    }
+
+    private void onCancelarSolicitado(ActionEvent e) {
+        cancelar();
+    }
+
+    private LocalDateTime leerFecha(String texto, String etiqueta, List<String> errores) {
+        if (texto.isBlank()) {
+            return null;
+        }
+        try {
+            return LocalDateTime.parse(texto.trim(), FORMATO_FECHA);
+        } catch (DateTimeParseException ex) {
+            errores.add("La fecha " + etiqueta + " debe tener el formato dd/mm/aaaa hh:mm.");
+            return null;
+        }
+    }
+
+    private void eliminarArchivos(List<String> nombres) {
+        List<String> errores = new ArrayList<>();
+        for (String nombre : nombres) {
+            try {
+                evidenciaService.eliminar(nombre);
+            } catch (EvidenciaInvalidaException ex) {
+                errores.add(ex.getMessage());
+            }
+        }
+        if (!errores.isEmpty()) {
+            listView.mostrarError(String.join("\n", errores));
+        }
+    }
+}
