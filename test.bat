@@ -4,4 +4,5 @@ echo  Ejecutando Pruebas Arquitectonicas y Verificacion MVC
 echo ========================================================
 
 java -ea -cp bin com.saltillo.limpieza.test.ArchitectureVerificationTest
+java -ea -cp bin com.saltillo.limpieza.test.EvidenciaStorageTest
 pause
