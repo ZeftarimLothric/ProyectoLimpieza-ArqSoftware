@@ -19,3 +19,6 @@ nbproject/private/
 Thumbs.db
 sources.txt
 *.log
+
+# Imágenes de evidencia cargadas en ejecución
+evidencias/
