@@ -1,11 +1,13 @@
 package com.saltillo.limpieza;
 
 import com.saltillo.limpieza.controllers.ActividadController;
+import com.saltillo.limpieza.controllers.ColoniaSelectorController;
 import com.saltillo.limpieza.controllers.ConsultaActividadesController;
 import com.saltillo.limpieza.controllers.DashboardController;
 import com.saltillo.limpieza.controllers.MainNavigationController;
 import com.saltillo.limpieza.repositories.IDashboardRepository;
 import com.saltillo.limpieza.repositories.MockActividadRepository;
+import com.saltillo.limpieza.repositories.MockColoniaRepository;
 import com.saltillo.limpieza.repositories.MockDashboardRepository;
 import com.saltillo.limpieza.repositories.MockEvidenciaRepository;
 import com.saltillo.limpieza.services.EvidenciaStorageService;
@@ -15,6 +17,7 @@ import com.saltillo.limpieza.views.MainShellView;
 import com.saltillo.limpieza.views.PlaceholderModuleView;
 import com.saltillo.limpieza.views.actividades.ActividadFormView;
 import com.saltillo.limpieza.views.actividades.ActividadListView;
+import com.saltillo.limpieza.views.actividades.ColoniaSelectorDialog;
 
 import javax.swing.*;
 
@@ -90,7 +93,9 @@ public class Main {
                     new MockActividadRepository(),
                     new MockEvidenciaRepository(),
                     dashboardRepo,
-                    new EvidenciaStorageService()
+                    new EvidenciaStorageService(),
+                    new ColoniaSelectorController(new ColoniaSelectorDialog(),
+                            new MockColoniaRepository()::buscarPorNombreOCodigoPostal)
             );
             MainNavigationController navigationController = new MainNavigationController(shellView);
 
