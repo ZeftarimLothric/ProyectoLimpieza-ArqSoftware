@@ -3,21 +3,27 @@ package com.saltillo.limpieza;
 import com.saltillo.limpieza.controllers.ActividadController;
 import com.saltillo.limpieza.controllers.ConsultaActividadesController;
 import com.saltillo.limpieza.controllers.DashboardController;
+import com.saltillo.limpieza.controllers.LoginController;
 import com.saltillo.limpieza.controllers.MainNavigationController;
 import com.saltillo.limpieza.database.ConexionBD;
 import com.saltillo.limpieza.repositories.IDashboardRepository;
 import com.saltillo.limpieza.repositories.MockActividadRepository;
 import com.saltillo.limpieza.repositories.MockDashboardRepository;
 import com.saltillo.limpieza.repositories.MockEvidenciaRepository;
+import com.saltillo.limpieza.repositories.SqlUsuarioRepository;
 import com.saltillo.limpieza.services.EvidenciaStorageService;
+import com.saltillo.limpieza.session.SesionUsuario;
 import com.saltillo.limpieza.views.ConsultaActividadesView;
 import com.saltillo.limpieza.views.DashboardView;
+import com.saltillo.limpieza.views.LoginView;
 import com.saltillo.limpieza.views.MainShellView;
 import com.saltillo.limpieza.views.PlaceholderModuleView;
 import com.saltillo.limpieza.views.actividades.ActividadFormView;
 import com.saltillo.limpieza.views.actividades.ActividadListView;
 
 import javax.swing.*;
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
@@ -49,70 +55,97 @@ public class Main {
         }
 
         SwingUtilities.invokeLater(() -> {
-            // 1. REPOSITORIO (Inversión de dependencias mediante contrato
-            // IDashboardRepository)
-            IDashboardRepository dashboardRepo = new MockDashboardRepository();
-
-            // 2. VISTAS DEL SISTEMA
-            MainShellView shellView = new MainShellView();
-            DashboardView dashboardView = new DashboardView();
-            ConsultaActividadesView consultaView = new ConsultaActividadesView();
-            ActividadListView actividadesView = new ActividadListView();
-
-            // Placeholders modulares para los compañeros de equipo
-            PlaceholderModuleView moduloCuadrillas = new PlaceholderModuleView(
-                    "CUADRILLAS",
-                    "Módulo: Catálogo de Cuadrillas y Jefes",
-                    "Integrante 2 (Acceso a Datos & CRUDs)",
-                    "Mantenimiento de cuadrillas (CRUD), altas, bajas y cambios de jefes de cuadrilla, " +
-                            "asignación de turnos y personal operativo.",
-                    dashboardRepo);
-
-            PlaceholderModuleView moduloColonias = new PlaceholderModuleView(
-                    "COLONIAS",
-                    "Módulo: Catálogo de Colonias (Sepomex Saltillo)",
-                    "Integrante 1 (Base de Datos & Modelo Core)",
-                    "Carga masiva e indexación del catálogo oficial de códigos postales y colonias " +
-                            "del Municipio de Saltillo a partir de SEPOMEX.",
-                    dashboardRepo);
-
-            // 3. REGISTRO MODULAR EN EL CONTENT HOST DEL SHELL (Desacoplamiento total)
-            shellView.registrarModulo("DASHBOARD", dashboardView);
-            shellView.registrarModulo("CONSULTA", consultaView);
-            shellView.registrarModulo("ACTIVIDADES", actividadesView);
-            shellView.registrarModulo("CUADRILLAS", moduloCuadrillas);
-            shellView.registrarModulo("COLONIAS", moduloColonias);
-
-            // 4. CONTROLADORES (Orquestación MVC y Patrón Observer)
-            DashboardController dashboardController = new DashboardController(dashboardView, dashboardRepo);
-            ConsultaActividadesController consultaController = new ConsultaActividadesController(consultaView,
-                    dashboardRepo);
-            ActividadController actividadController = new ActividadController(
-                    actividadesView,
-                    new ActividadFormView(),
-                    new MockActividadRepository(),
-                    new MockEvidenciaRepository(),
-                    dashboardRepo,
-                    new EvidenciaStorageService());
-            MainNavigationController navigationController = new MainNavigationController(shellView);
-            navigationController.registrarLimpiezaAlCerrar(dashboardController::destruir);
-            navigationController.registrarLimpiezaAlCerrar(consultaController::destruir);
-            navigationController.registrarLimpiezaAlCerrar(() -> {
-                if (Files.exists(Path.of(ConexionBD.RUTA_CONFIG))) {
-                    ConexionBD.getInstance().cerrar();
-                }
-            });
-            // TODO(#7): configurar navigationController.setAlCerrarSesionCallback(...) para
-            // volver al Login
-
-            // 5. NAVEGAR A LA VISTA INICIAL (Dashboard Ejecutivo) Y MOSTRAR
-            navigationController.navegarA("DASHBOARD");
-            shellView.setVisible(true);
-
-            System.out.println("=========================================================");
-            System.out.println("SISTEMA DE GESTION DE LIMPIEZA URBANA - SALTILLO COAHUILA");
-            System.out.println("Módulo Integrante 4 (Shell, Dashboard, Consulta & Observer) ACTIVO.");
-            System.out.println("=========================================================");
+            if (SesionUsuario.getInstance().estaActiva()) {
+                abrirShell();
+            } else {
+                mostrarLogin();
+            }
         });
+    }
+
+    /**
+     * Muestra la pantalla de acceso (Issue #7 / #15). Al autenticarse, abre el Shell principal.
+     */
+    public static void mostrarLogin() {
+        LoginView loginView = new LoginView();
+        loginView.addWindowListener(new WindowAdapter() {
+            @Override
+            public void windowClosing(WindowEvent e) {
+                cerrarConexionSiExiste();
+            }
+        });
+        new LoginController(loginView, new SqlUsuarioRepository(), Main::abrirShell);
+        loginView.setVisible(true);
+    }
+
+    /**
+     * Construye y muestra el Shell principal con los módulos y limpieza de cierre seguro (Issue #15).
+     */
+    public static void abrirShell() {
+        // 1. REPOSITORIO (Inversión de dependencias mediante contrato
+        // IDashboardRepository)
+        IDashboardRepository dashboardRepo = new MockDashboardRepository();
+
+        // 2. VISTAS DEL SISTEMA
+        MainShellView shellView = new MainShellView();
+        DashboardView dashboardView = new DashboardView();
+        ConsultaActividadesView consultaView = new ConsultaActividadesView();
+        ActividadListView actividadesView = new ActividadListView();
+
+        // Placeholders modulares para los compañeros de equipo
+        PlaceholderModuleView moduloCuadrillas = new PlaceholderModuleView(
+                "CUADRILLAS",
+                "Módulo: Catálogo de Cuadrillas y Jefes",
+                "Integrante 2 (Acceso a Datos & CRUDs)",
+                "Mantenimiento de cuadrillas (CRUD), altas, bajas y cambios de jefes de cuadrilla, " +
+                        "asignación de turnos y personal operativo.",
+                dashboardRepo);
+
+        PlaceholderModuleView moduloColonias = new PlaceholderModuleView(
+                "COLONIAS",
+                "Módulo: Catálogo de Colonias (Sepomex Saltillo)",
+                "Integrante 1 (Base de Datos & Modelo Core)",
+                "Carga masiva e indexación del catálogo oficial de códigos postales y colonias " +
+                        "del Municipio de Saltillo a partir de SEPOMEX.",
+                dashboardRepo);
+
+        // 3. REGISTRO MODULAR EN EL CONTENT HOST DEL SHELL (Desacoplamiento total)
+        shellView.registrarModulo("DASHBOARD", dashboardView);
+        shellView.registrarModulo("CONSULTA", consultaView);
+        shellView.registrarModulo("ACTIVIDADES", actividadesView);
+        shellView.registrarModulo("CUADRILLAS", moduloCuadrillas);
+        shellView.registrarModulo("COLONIAS", moduloColonias);
+
+        // 4. CONTROLADORES (Orquestación MVC y Patrón Observer)
+        DashboardController dashboardController = new DashboardController(dashboardView, dashboardRepo);
+        ConsultaActividadesController consultaController = new ConsultaActividadesController(consultaView,
+                dashboardRepo);
+        ActividadController actividadController = new ActividadController(
+                actividadesView,
+                new ActividadFormView(),
+                new MockActividadRepository(),
+                new MockEvidenciaRepository(),
+                dashboardRepo,
+                new EvidenciaStorageService());
+        MainNavigationController navigationController = new MainNavigationController(shellView);
+        navigationController.registrarLimpiezaAlCerrar(dashboardController::destruir);
+        navigationController.registrarLimpiezaAlCerrar(consultaController::destruir);
+        navigationController.registrarLimpiezaAlCerrar(Main::cerrarConexionSiExiste);
+        navigationController.setAlCerrarSesionCallback(Main::mostrarLogin);
+
+        // 5. NAVEGAR A LA VISTA INICIAL (Dashboard Ejecutivo) Y MOSTRAR
+        navigationController.navegarA("DASHBOARD");
+        shellView.setVisible(true);
+
+        System.out.println("=========================================================");
+        System.out.println("SISTEMA DE GESTION DE LIMPIEZA URBANA - SALTILLO COAHUILA");
+        System.out.println("Módulo Integrante 4 (Shell, Dashboard, Consulta & Observer) ACTIVO.");
+        System.out.println("=========================================================");
+    }
+
+    private static void cerrarConexionSiExiste() {
+        if (Files.exists(Path.of(ConexionBD.RUTA_CONFIG))) {
+            ConexionBD.getInstance().cerrar();
+        }
     }
 }

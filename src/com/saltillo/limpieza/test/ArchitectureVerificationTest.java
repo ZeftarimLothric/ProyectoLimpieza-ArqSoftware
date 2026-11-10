@@ -13,6 +13,7 @@ import com.saltillo.limpieza.repositories.MockDashboardRepository;
 import com.saltillo.limpieza.session.SesionUsuario;
 import com.saltillo.limpieza.views.ConsultaActividadesView;
 import com.saltillo.limpieza.views.DashboardView;
+import com.saltillo.limpieza.views.LoginView;
 import com.saltillo.limpieza.views.MainShellView;
 
 import javax.swing.WindowConstants;
@@ -214,6 +215,12 @@ public class ArchitectureVerificationTest {
         nav.registrarLimpiezaAlCerrar(dashCtrl::destruir);
         nav.registrarLimpiezaAlCerrar(consCtrl::destruir);
         nav.registrarLimpiezaAlCerrar(() -> cierreBdSimulado.set(true));
+        nav.setAlCerrarSesionCallback(() -> {});
+
+        LoginView loginView = new LoginView();
+        assert loginView.getDefaultCloseOperation() == WindowConstants.EXIT_ON_CLOSE
+                : "El Login debe cerrar la app si se cierra con X";
+        loginView.dispose();
 
         assert nav.isSesionAutenticada() : "Debe existir sesión activa antes del cierre";
         nav.ejecutarLimpiezaRecursos();
