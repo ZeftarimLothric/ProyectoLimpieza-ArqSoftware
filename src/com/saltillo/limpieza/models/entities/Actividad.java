@@ -3,6 +3,7 @@ package com.saltillo.limpieza.models.entities;
 
 import java.io.Serializable;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -32,6 +33,7 @@ public class Actividad implements Serializable {
     private LocalTime horaFin;
     private String lugarEspecifico;
     private String observaciones;
+    private LocalDateTime fechaRealizacion;
 
     private List<Colonia> colonias;
     private List<Evidencia> evidencias;
@@ -255,6 +257,32 @@ public class Actividad implements Serializable {
         } else {
             this.observaciones = observaciones.trim();
         }
+    }
+
+    // Puente de compatibilidad con ActividadDetalleDTO / SQL (fecha programada y fecha de realización)
+    public LocalDateTime getFechaProgramada() {
+        if (fechaActividad == null) {
+            return null;
+        }
+        return LocalDateTime.of(fechaActividad, horaInicio != null ? horaInicio : LocalTime.MIDNIGHT);
+    }
+
+    public void setFechaProgramada(LocalDateTime fechaProgramada) {
+        if (fechaProgramada == null) {
+            throw new IllegalArgumentException(
+                "La fecha programada es obligatoria."
+            );
+        }
+        setFechaActividad(fechaProgramada.toLocalDate());
+        setHoraInicio(fechaProgramada.toLocalTime());
+    }
+
+    public LocalDateTime getFechaRealizacion() {
+        return fechaRealizacion;
+    }
+
+    public void setFechaRealizacion(LocalDateTime fechaRealizacion) {
+        this.fechaRealizacion = fechaRealizacion;
     }
 
     // Colonias

@@ -7,6 +7,7 @@ import java.awt.*;
 import java.awt.event.ActionListener;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
+import java.awt.event.WindowListener;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -52,7 +53,7 @@ public class MainShellView extends JFrame {
 
     public MainShellView() {
         super("Municipio de Saltillo • Sistema de Gestión de Actividades de Limpieza Urbana");
-        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        setDefaultCloseOperation(WindowConstants.DO_NOTHING_ON_CLOSE);
         setSize(1280, 800);
         setMinimumSize(new Dimension(1100, 720));
         setLocationRelativeTo(null);
@@ -355,5 +356,9 @@ public class MainShellView extends JFrame {
 
     public void setCerrarSesionListener(ActionListener al) {
         btnCerrarSesion.addActionListener(al);
+    }
+
+    public void setCerrarVentanaListener(WindowListener wl) {
+        addWindowListener(wl);
     }
 }

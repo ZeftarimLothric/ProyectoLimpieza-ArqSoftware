@@ -50,11 +50,13 @@ CREATE TABLE `actividades` (
   `ID_TIPO_ACTIVIDAD` int NOT NULL,
   `ID_ESTADO_ACTIVIDAD` int NOT NULL,
   `ID_CUADRILLA` int NOT NULL,
-  `TITULO` varchar(100) NOT NULL,
-  `DESCRIPCION` varchar(200) NOT NULL,
-  `FECHA_ACTIVIDAD` date NOT NULL,
+  `TITULO` varchar(100) DEFAULT NULL,
+  `DESCRIPCION` varchar(200) DEFAULT NULL,
+  `FECHA_ACTIVIDAD` date DEFAULT NULL,
   `HORA_INICIO` time DEFAULT NULL,
   `HORA_FIN` time DEFAULT NULL,
+  `FECHA_PROGRAMADA` datetime DEFAULT NULL,
+  `FECHA_REALIZACION` datetime DEFAULT NULL,
   `LUGAR_ESPECIFICO` varchar(200) NOT NULL,
   `OBSERVACIONES` longtext,
   PRIMARY KEY (`ID_ACTIVIDAD`),
@@ -153,6 +155,11 @@ CREATE TABLE `estados_actividad` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
+INSERT INTO `estados_actividad` (`ID_ESTADO_ACTIVIDAD`, `NOMBRE_ESTADO`) VALUES
+  (1, 'PROGRAMADA'),
+  (2, 'EN PROCESO'),
+  (3, 'COMPLETADA');
+
 --
 -- Table structure for table `evidencia`
 --
@@ -199,6 +206,7 @@ CREATE TABLE `usuarios` (
   `USERNAME` varchar(50) NOT NULL,
   `CONTRASENA` char(64) NOT NULL,
   `NOMBRE` varchar(100) NOT NULL,
+  `ROL` varchar(50) NOT NULL DEFAULT 'ADMINISTRADOR',
   `ACTIVO` smallint NOT NULL,
   PRIMARY KEY (`ID_USUARIO`),
   UNIQUE KEY `UQ_USERNAME` (`USERNAME`)
