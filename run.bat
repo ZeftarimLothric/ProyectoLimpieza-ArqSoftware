@@ -8,4 +8,10 @@ if not exist bin\com\saltillo\limpieza\Main.class (
     call build.bat
 )
 
-java -cp bin com.saltillo.limpieza.Main
+set "CP=bin"
+if exist "lib\*" set "CP=%CP%;lib\*"
+if exist "%USERPROFILE%\.m2\repository\com\mysql\mysql-connector-j\8.4.0\mysql-connector-j-8.4.0.jar" (
+    set "CP=%CP%;%USERPROFILE%\.m2\repository\com\mysql\mysql-connector-j\8.4.0\mysql-connector-j-8.4.0.jar"
+)
+
+java -cp "%CP%" com.saltillo.limpieza.Main
