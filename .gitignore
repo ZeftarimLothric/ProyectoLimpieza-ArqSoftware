@@ -22,3 +22,6 @@ sources.txt
 
 # Imágenes de evidencia cargadas en ejecución
 evidencias/
+
+# Configuración local de la base de datos (contiene la contraseña de MySQL)
+config/db.properties
