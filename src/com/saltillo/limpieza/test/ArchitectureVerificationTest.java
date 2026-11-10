@@ -2,7 +2,9 @@ package com.saltillo.limpieza.test;
 
 import com.saltillo.limpieza.controllers.ConsultaActividadesController;
 import com.saltillo.limpieza.controllers.DashboardController;
+import com.saltillo.limpieza.controllers.MainNavigationController;
 import com.saltillo.limpieza.models.dto.*;
+import com.saltillo.limpieza.models.entities.Actividad;
 import com.saltillo.limpieza.models.entities.Usuario;
 import com.saltillo.limpieza.patterns.observer.ActividadEventBus;
 import com.saltillo.limpieza.patterns.observer.IObserver;
@@ -11,8 +13,11 @@ import com.saltillo.limpieza.repositories.MockDashboardRepository;
 import com.saltillo.limpieza.session.SesionUsuario;
 import com.saltillo.limpieza.views.ConsultaActividadesView;
 import com.saltillo.limpieza.views.DashboardView;
+import com.saltillo.limpieza.views.MainShellView;
 
+import javax.swing.WindowConstants;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -38,8 +43,10 @@ public class ArchitectureVerificationTest {
         testObserverPatternDirectly();
         testControllerObserverIntegration();
         testConsultaActividadesMVC();
+        testCompatibilidadUsuarioYActividad();
+        testCierreSeguroLimpiezaRecursos();
 
-        System.out.println("\n>>> TODAS LAS PRUEBAS (INCLUYENDO ISSUE #16) PASARON CON EXITO (100% OK) <<<");
+        System.out.println("\n>>> TODAS LAS PRUEBAS (INCLUYENDO ISSUE #15 Y COMPATIBILIDAD) PASARON CON EXITO (100% OK) <<<");
     }
 
     private static void testSesionUsuario() {
@@ -166,5 +173,55 @@ public class ArchitectureVerificationTest {
 
         controller.destruir();
         System.out.println("PASO (Consulta MVC y Observer reactivo al 100%)");
+    }
+
+    private static void testCompatibilidadUsuarioYActividad() {
+        System.out.print("[TEST 7] Verificando compatibilidad Usuario/Actividad con schema.sql y DTOs... ");
+        String hash = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
+        Usuario uSinRol = new Usuario(2, "Admin BD", "admin.bd", hash, true);
+        assert Usuario.ROL_POR_DEFECTO.equals(uSinRol.getRol()) : "El usuario sin rol debe recibir ADMINISTRADOR por defecto";
+        uSinRol.setRol(null);
+        assert Usuario.ROL_POR_DEFECTO.equals(uSinRol.getRol()) : "setRol(null) debe asignar ADMINISTRADOR por defecto";
+
+        LocalDateTime prog = LocalDateTime.of(2026, 11, 15, 9, 30);
+        LocalDateTime real = LocalDateTime.of(2026, 11, 15, 11, 45);
+        Actividad act = new Actividad();
+        act.setFechaProgramada(prog);
+        act.setFechaRealizacion(real);
+        assert prog.equals(act.getFechaProgramada()) : "La fecha programada debe sincronizar fechaActividad y horaInicio";
+        assert real.equals(act.getFechaRealizacion()) : "La fecha de realización debe conservarse";
+
+        ActividadDetalleDTO dto = new ActividadDetalleDTO(
+                10, 1, "Cuadrilla Centro", List.of("Centro"), "Barrido",
+                "Plaza de Armas", "PROGRAMADA", prog, "Sin observaciones"
+        );
+        assert "Barrido - Plaza de Armas".equals(dto.getTitulo()) : "El DTO debe generar un título por defecto válido";
+        System.out.println("PASO (Usuario sin ROL, fechas puente en Actividad y titulo por defecto en DTO OK)");
+    }
+
+    private static void testCierreSeguroLimpiezaRecursos() {
+        System.out.print("[TEST 8] Verificando Cierre Seguro de recursos y cierre de ventana (Issue #15)... ");
+        MainShellView shell = new MainShellView();
+        assert shell.getDefaultCloseOperation() == WindowConstants.DO_NOTHING_ON_CLOSE
+                : "La ventana principal debe interceptar el cierre con X";
+
+        IDashboardRepository repo = new MockDashboardRepository();
+        DashboardController dashCtrl = new DashboardController(new DashboardView(), repo);
+        ConsultaActividadesController consCtrl = new ConsultaActividadesController(new ConsultaActividadesView(), repo);
+
+        AtomicBoolean cierreBdSimulado = new AtomicBoolean(false);
+        MainNavigationController nav = new MainNavigationController(shell);
+        nav.registrarLimpiezaAlCerrar(dashCtrl::destruir);
+        nav.registrarLimpiezaAlCerrar(consCtrl::destruir);
+        nav.registrarLimpiezaAlCerrar(() -> cierreBdSimulado.set(true));
+
+        assert nav.isSesionAutenticada() : "Debe existir sesión activa antes del cierre";
+        nav.ejecutarLimpiezaRecursos();
+
+        assert !nav.isSesionAutenticada() : "La sesión debe quedar destruida tras la limpieza";
+        assert cierreBdSimulado.get() : "Las tareas de limpieza registradas deben ejecutarse";
+
+        shell.dispose();
+        System.out.println("PASO (Interceptación X, limpieza de observadores/recursos y SesionUsuario.destruir OK)");
     }
 }

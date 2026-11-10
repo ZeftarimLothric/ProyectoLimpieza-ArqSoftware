@@ -14,6 +14,7 @@ import java.io.Serializable;
 public class Usuario implements Serializable {
 
     private static final long serialVersionUID = 1L;
+    public static final String ROL_POR_DEFECTO = "ADMINISTRADOR";
 
     private int idUsuario;
     private String nombre;
@@ -24,6 +25,7 @@ public class Usuario implements Serializable {
 
     // Constructor vacio
     public Usuario() {
+        this.rol = ROL_POR_DEFECTO;
     }
 
     // Constructor completo
@@ -36,6 +38,12 @@ public class Usuario implements Serializable {
         setContrasenaHash(contrasenaHash);
         setRol(rol);
         setActivo(activo);
+    }
+
+    // Constructor alineado con tabla usuarios de schema.sql (sin columna ROL)
+    public Usuario(int idUsuario, String nombre, String usuario,
+                   String contrasenaHash, boolean activo) {
+        this(idUsuario, nombre, usuario, contrasenaHash, ROL_POR_DEFECTO, activo);
     }
 
     // Constructor para sesiones y login
@@ -132,9 +140,8 @@ public class Usuario implements Serializable {
 
     public void setRol(String rol) {
         if (rol == null || rol.trim().isEmpty()) {
-            throw new IllegalArgumentException(
-                "El rol del usuario no puede estar vacio."
-            );
+            this.rol = ROL_POR_DEFECTO;
+            return;
         }
 
         this.rol = rol.trim();

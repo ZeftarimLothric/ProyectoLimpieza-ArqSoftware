@@ -93,6 +93,10 @@ public class Main {
                     new EvidenciaStorageService()
             );
             MainNavigationController navigationController = new MainNavigationController(shellView);
+            navigationController.registrarLimpiezaAlCerrar(dashboardController::destruir);
+            navigationController.registrarLimpiezaAlCerrar(consultaController::destruir);
+            // TODO(#3): registrar () -> ConexionBD.getInstance().cerrar() al integrar MySQL
+            // TODO(#7): configurar navigationController.setAlCerrarSesionCallback(...) para volver al Login
 
             // 5. NAVEGAR A LA VISTA INICIAL (Dashboard Ejecutivo) Y MOSTRAR
             navigationController.navegarA("DASHBOARD");
