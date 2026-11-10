@@ -1,0 +1,8 @@
+# Plantilla de configuración de la base de datos (Issue #3).
+# 1. Copia este archivo como config/db.properties
+# 2. Cambia usuario y contraseña por los de TU MySQL local
+# config/db.properties NO se sube a GitHub (está en .gitignore).
+
+db.url=jdbc:mysql://localhost:3306/gestion_limpieza?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC&characterEncoding=UTF-8
+db.user=root
+db.password=tu_contraseña_aqui
