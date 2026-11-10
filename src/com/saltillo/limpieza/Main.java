@@ -4,6 +4,7 @@ import com.saltillo.limpieza.controllers.ActividadController;
 import com.saltillo.limpieza.controllers.ConsultaActividadesController;
 import com.saltillo.limpieza.controllers.DashboardController;
 import com.saltillo.limpieza.controllers.MainNavigationController;
+import com.saltillo.limpieza.database.ConexionBD;
 import com.saltillo.limpieza.repositories.IDashboardRepository;
 import com.saltillo.limpieza.repositories.MockActividadRepository;
 import com.saltillo.limpieza.repositories.MockDashboardRepository;
@@ -17,6 +18,8 @@ import com.saltillo.limpieza.views.actividades.ActividadFormView;
 import com.saltillo.limpieza.views.actividades.ActividadListView;
 
 import javax.swing.*;
+import java.nio.file.Files;
+import java.nio.file.Path;
 
 /**
  * Punto de entrada principal de la aplicación.
@@ -30,10 +33,10 @@ import javax.swing.*;
  * =============================================================================
  * GUÍA DE INTEGRACIÓN PARA EL EQUIPO:
  * 1. INTEGRANTE 1 & 2 (Ximena & Eli - Issue #17):
- *    Al terminar la BD MySQL, sustituir en la línea 48:
- *        IDashboardRepository dashboardRepo = new MockDashboardRepository();
- *    por:
- *        IDashboardRepository dashboardRepo = new SqlDashboardRepository();
+ * Al terminar la BD MySQL, sustituir en la línea 48:
+ * IDashboardRepository dashboardRepo = new MockDashboardRepository();
+ * por:
+ * IDashboardRepository dashboardRepo = new SqlDashboardRepository();
  * =============================================================================
  */
 public class Main {
@@ -46,7 +49,8 @@ public class Main {
         }
 
         SwingUtilities.invokeLater(() -> {
-            // 1. REPOSITORIO (Inversión de dependencias mediante contrato IDashboardRepository)
+            // 1. REPOSITORIO (Inversión de dependencias mediante contrato
+            // IDashboardRepository)
             IDashboardRepository dashboardRepo = new MockDashboardRepository();
 
             // 2. VISTAS DEL SISTEMA
@@ -61,18 +65,16 @@ public class Main {
                     "Módulo: Catálogo de Cuadrillas y Jefes",
                     "Integrante 2 (Acceso a Datos & CRUDs)",
                     "Mantenimiento de cuadrillas (CRUD), altas, bajas y cambios de jefes de cuadrilla, " +
-                    "asignación de turnos y personal operativo.",
-                    dashboardRepo
-            );
+                            "asignación de turnos y personal operativo.",
+                    dashboardRepo);
 
             PlaceholderModuleView moduloColonias = new PlaceholderModuleView(
                     "COLONIAS",
                     "Módulo: Catálogo de Colonias (Sepomex Saltillo)",
                     "Integrante 1 (Base de Datos & Modelo Core)",
                     "Carga masiva e indexación del catálogo oficial de códigos postales y colonias " +
-                    "del Municipio de Saltillo a partir de SEPOMEX.",
-                    dashboardRepo
-            );
+                            "del Municipio de Saltillo a partir de SEPOMEX.",
+                    dashboardRepo);
 
             // 3. REGISTRO MODULAR EN EL CONTENT HOST DEL SHELL (Desacoplamiento total)
             shellView.registrarModulo("DASHBOARD", dashboardView);
@@ -83,20 +85,25 @@ public class Main {
 
             // 4. CONTROLADORES (Orquestación MVC y Patrón Observer)
             DashboardController dashboardController = new DashboardController(dashboardView, dashboardRepo);
-            ConsultaActividadesController consultaController = new ConsultaActividadesController(consultaView, dashboardRepo);
+            ConsultaActividadesController consultaController = new ConsultaActividadesController(consultaView,
+                    dashboardRepo);
             ActividadController actividadController = new ActividadController(
                     actividadesView,
                     new ActividadFormView(),
                     new MockActividadRepository(),
                     new MockEvidenciaRepository(),
                     dashboardRepo,
-                    new EvidenciaStorageService()
-            );
+                    new EvidenciaStorageService());
             MainNavigationController navigationController = new MainNavigationController(shellView);
             navigationController.registrarLimpiezaAlCerrar(dashboardController::destruir);
             navigationController.registrarLimpiezaAlCerrar(consultaController::destruir);
-            // TODO(#3): registrar () -> ConexionBD.getInstance().cerrar() al integrar MySQL
-            // TODO(#7): configurar navigationController.setAlCerrarSesionCallback(...) para volver al Login
+            navigationController.registrarLimpiezaAlCerrar(() -> {
+                if (Files.exists(Path.of(ConexionBD.RUTA_CONFIG))) {
+                    ConexionBD.getInstance().cerrar();
+                }
+            });
+            // TODO(#7): configurar navigationController.setAlCerrarSesionCallback(...) para
+            // volver al Login
 
             // 5. NAVEGAR A LA VISTA INICIAL (Dashboard Ejecutivo) Y MOSTRAR
             navigationController.navegarA("DASHBOARD");
