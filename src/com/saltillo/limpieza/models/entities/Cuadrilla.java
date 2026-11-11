@@ -41,6 +41,13 @@ public class Cuadrilla implements Serializable {
         setIntegrantes(integrantes);
         setJefe(jefe);
     }
+    // Constructor sin personal: jefe e integrantes se cargan aparte (tabla cuadrilla_empleado)
+    public Cuadrilla(int idCuadrilla, String nombre, boolean activo) {
+        this();
+        setIdCuadrilla(idCuadrilla);
+        setNombre(nombre);
+        setActivo(activo);
+    }
 
     // ID Cuadrilla
     public int getIdCuadrilla() {
