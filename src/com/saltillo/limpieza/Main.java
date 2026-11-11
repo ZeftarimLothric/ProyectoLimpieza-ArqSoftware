@@ -1,6 +1,7 @@
 package com.saltillo.limpieza;
 
 import com.saltillo.limpieza.controllers.ActividadController;
+import com.saltillo.limpieza.controllers.ColoniaSelectorController;
 import com.saltillo.limpieza.controllers.ConsultaActividadesController;
 import com.saltillo.limpieza.controllers.DashboardController;
 import com.saltillo.limpieza.controllers.LoginController;
@@ -11,11 +12,12 @@ import com.saltillo.limpieza.controllers.catalogos.TipoActividadController;
 import com.saltillo.limpieza.controllers.catalogos.UsuarioController;
 import com.saltillo.limpieza.database.ConexionBD;
 import com.saltillo.limpieza.repositories.IDashboardRepository;
-import com.saltillo.limpieza.repositories.MockActividadRepository;
+import com.saltillo.limpieza.repositories.SqlActividadRepository;
 import com.saltillo.limpieza.repositories.SqlDashboardRepository;
-import com.saltillo.limpieza.repositories.MockEvidenciaRepository;
 import com.saltillo.limpieza.repositories.SqlColoniaRepository;
+import com.saltillo.limpieza.repositories.SqlCuadrillaRepository;
 import com.saltillo.limpieza.repositories.SqlEmpleadoRepository;
+import com.saltillo.limpieza.repositories.SqlEvidenciaRepository;
 import com.saltillo.limpieza.repositories.SqlTipoActividadRepository;
 import com.saltillo.limpieza.repositories.SqlUsuarioRepository;
 import com.saltillo.limpieza.services.EvidenciaStorageService;
@@ -25,8 +27,10 @@ import com.saltillo.limpieza.views.DashboardView;
 import com.saltillo.limpieza.views.LoginView;
 import com.saltillo.limpieza.views.MainShellView;
 import com.saltillo.limpieza.views.PlaceholderModuleView;
+import com.saltillo.limpieza.views.actividades.ActividadDetalleView;
 import com.saltillo.limpieza.views.actividades.ActividadFormView;
 import com.saltillo.limpieza.views.actividades.ActividadListView;
+import com.saltillo.limpieza.views.actividades.ColoniaSelectorDialog;
 import com.saltillo.limpieza.views.catalogos.CatalogosView;
 import com.saltillo.limpieza.views.catalogos.ColoniaView;
 import com.saltillo.limpieza.views.catalogos.EmpleadoView;
@@ -140,14 +144,15 @@ public class Main {
         DashboardController dashboardController = new DashboardController(dashboardView, dashboardRepo);
         ConsultaActividadesController consultaController = new ConsultaActividadesController(consultaView,
                 dashboardRepo);
-        // TODO(#18): sustituir MockActividadRepository y MockEvidenciaRepository por Sql*Repository
         ActividadController actividadController = new ActividadController(
                 actividadesView,
                 new ActividadFormView(),
-                new MockActividadRepository(),
-                new MockEvidenciaRepository(),
-                dashboardRepo,
-                new EvidenciaStorageService());
+                new ActividadDetalleView(),
+                new SqlActividadRepository(),
+                new SqlEvidenciaRepository(),
+                new SqlCuadrillaRepository(),
+                new EvidenciaStorageService(),
+                new ColoniaSelectorController(new ColoniaSelectorDialog(), new SqlColoniaRepository()));
 
         new UsuarioController(usuariosView, new SqlUsuarioRepository());
         new EmpleadoController(empleadosView, new SqlEmpleadoRepository());

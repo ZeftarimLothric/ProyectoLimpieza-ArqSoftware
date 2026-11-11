@@ -1,5 +1,7 @@
 package com.saltillo.limpieza.views.actividades;
 
+import com.saltillo.limpieza.models.entities.Colonia;
+
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.ActionListener;
@@ -26,6 +28,10 @@ public class ActividadFormView extends JPanel {
     private final JTextField txtFechaProgramada = new JTextField();
     private final JTextField txtFechaRealizacion = new JTextField();
     private final JTextArea txtDescripcion = new JTextArea(3, 20);
+    private final DefaultListModel<Colonia> modeloColonias = new DefaultListModel<>();
+    private final JList<Colonia> lstColonias = new JList<>(modeloColonias);
+    private final JButton btnElegirColonias = new JButton("Elegir colonias...");
+    private final JButton btnQuitarColonias = new JButton("Quitar");
     private final EvidenciaPanel evidenciaPanel = new EvidenciaPanel();
     private final JButton btnGuardar = new JButton("Guardar");
     private final JButton btnCancelar = new JButton("Cancelar");
@@ -57,12 +63,33 @@ public class ActividadFormView extends JPanel {
         agregarCampo(pnlCampos, g, 0, 4, 1, "Fecha programada (dd/mm/aaaa hh:mm):", txtFechaProgramada);
         agregarCampo(pnlCampos, g, 1, 4, 1, "Fecha de realización (dd/mm/aaaa hh:mm):", txtFechaRealizacion);
         agregarCampo(pnlCampos, g, 0, 6, 2, "Estado:", cmbEstado);
+        agregarCampo(pnlCampos, g, 0, 8, 2, "Colonias atendidas:", crearSeccionColonias());
 
         txtDescripcion.setLineWrap(true);
         txtDescripcion.setWrapStyleWord(true);
         txtDescripcion.setFont(new Font("Segoe UI", Font.PLAIN, 12));
-        agregarCampo(pnlCampos, g, 0, 8, 2, "Descripción:", new JScrollPane(txtDescripcion));
+        agregarCampo(pnlCampos, g, 0, 10, 2, "Descripción:", new JScrollPane(txtDescripcion));
         return pnlCampos;
+    }
+
+    private JPanel crearSeccionColonias() {
+        lstColonias.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        lstColonias.setSelectionMode(ListSelectionModel.MULTIPLE_INTERVAL_SELECTION);
+        lstColonias.setVisibleRowCount(3);
+        lstColonias.setCellRenderer(new ColoniaCellRenderer());
+
+        JPanel pnlBotones = new JPanel(new GridLayout(2, 1, 0, 4));
+        pnlBotones.setOpaque(false);
+        btnElegirColonias.setFont(new Font("Segoe UI", Font.BOLD, 11));
+        btnQuitarColonias.setFont(new Font("Segoe UI", Font.BOLD, 11));
+        pnlBotones.add(btnElegirColonias);
+        pnlBotones.add(btnQuitarColonias);
+
+        JPanel pnlColonias = new JPanel(new BorderLayout(8, 0));
+        pnlColonias.setOpaque(false);
+        pnlColonias.add(new JScrollPane(lstColonias), BorderLayout.CENTER);
+        pnlColonias.add(pnlBotones, BorderLayout.EAST);
+        return pnlColonias;
     }
 
     private void agregarCampo(JPanel panel, GridBagConstraints g, int columna, int fila, int ancho, String etiqueta, JComponent campo) {
@@ -115,6 +142,16 @@ public class ActividadFormView extends JPanel {
         txtFechaProgramada.setText("");
         txtFechaRealizacion.setText("");
         txtDescripcion.setText("");
+        modeloColonias.clear();
+    }
+
+    public void mostrarColonias(List<Colonia> colonias) {
+        modeloColonias.clear();
+        modeloColonias.addAll(colonias);
+    }
+
+    public List<Colonia> getColoniasMarcadas() {
+        return lstColonias.getSelectedValuesList();
     }
 
     public void mostrarDatos(String cuadrilla, String tipo, String lugar, String fechaProgramada,
@@ -141,7 +178,7 @@ public class ActividadFormView extends JPanel {
             }
         });
         dialogo.setContentPane(this);
-        dialogo.setSize(720, 640);
+        dialogo.setSize(720, 720);
         dialogo.setLocationRelativeTo(padre);
         dialogo.setVisible(true);
     }
@@ -194,5 +231,13 @@ public class ActividadFormView extends JPanel {
 
     public void setCancelarListener(ActionListener l) {
         btnCancelar.addActionListener(l);
+    }
+
+    public void setElegirColoniasListener(ActionListener l) {
+        btnElegirColonias.addActionListener(l);
+    }
+
+    public void setQuitarColoniasListener(ActionListener l) {
+        btnQuitarColonias.addActionListener(l);
     }
 }

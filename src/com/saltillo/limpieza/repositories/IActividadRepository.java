@@ -8,7 +8,7 @@ import java.util.List;
  * Contrato de acceso a datos de las actividades de limpieza (Integrante 3 - Issue #10).
  *
  * TODO(#2): cambiar ActividadDetalleDTO por la entidad Actividad cuando exista.
- * TODO(#18): crear SqlActividadRepository con este mismo contrato.
+ * Implementaciones: MockActividadRepository (pruebas) y SqlActividadRepository (MySQL, Issue #18).
  */
 public interface IActividadRepository {
 
