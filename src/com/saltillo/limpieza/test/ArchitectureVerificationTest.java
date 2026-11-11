@@ -15,6 +15,7 @@ import com.saltillo.limpieza.views.ConsultaActividadesView;
 import com.saltillo.limpieza.views.DashboardView;
 import com.saltillo.limpieza.views.LoginView;
 import com.saltillo.limpieza.views.MainShellView;
+import com.saltillo.limpieza.views.catalogos.CatalogosView;
 
 import javax.swing.WindowConstants;
 import java.time.LocalDate;
@@ -228,7 +229,20 @@ public class ArchitectureVerificationTest {
         assert !nav.isSesionAutenticada() : "La sesión debe quedar destruida tras la limpieza";
         assert cierreBdSimulado.get() : "Las tareas de limpieza registradas deben ejecutarse";
 
+        boolean rechazoSinSesion = false;
+        try {
+            new MainNavigationController(shell, true);
+        } catch (IllegalStateException expected) {
+            rechazoSinSesion = true;
+        }
+        assert rechazoSinSesion : "El Shell en modo estricto debe rechazar abrirse sin sesión activa";
+
+        CatalogosView catalogosView = new CatalogosView();
+        shell.registrarModulo("CATALOGOS", catalogosView);
+        shell.mostrarModulo("CATALOGOS");
+        assert "CATALOGOS".equals(shell.getModuloActivoActual()) : "El menú debe poder abrir el módulo CATALOGOS";
+
         shell.dispose();
-        System.out.println("PASO (Interceptación X, limpieza de observadores/recursos y SesionUsuario.destruir OK)");
+        System.out.println("PASO (Interceptación X, limpieza, sesión obligatoria y módulo CATALOGOS OK)");
     }
 }

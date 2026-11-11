@@ -28,6 +28,7 @@ config/db.properties
 
 # Archivos locales de SEPOMEX
 /db/CodigosPostales.xls
+/db/Coahuila de Zaragoza.txt
 /db/sepomex_saltillo_local.sql
 
 # Base de datos de prueba local
