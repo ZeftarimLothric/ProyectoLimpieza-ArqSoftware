@@ -27,10 +27,17 @@ public class MainNavigationController {
     private Runnable alCerrarSesionCallback;
 
     public MainNavigationController(MainShellView shellView) {
+        this(shellView, false);
+    }
+
+    public MainNavigationController(MainShellView shellView, boolean requerirSesionActiva) {
         this.shellView = shellView;
 
-        // Inicializar sesión por defecto si no existe una previa
         if (!SesionUsuario.getInstance().estaActiva()) {
+            if (requerirSesionActiva) {
+                throw new IllegalStateException("Acceso denegado: no existe una sesión activa.");
+            }
+            // Respaldo únicamente para pruebas aisladas sin pasar por LoginView
             Usuario demoUser = new Usuario(1, "Lic. Administrador Municipal", "admin.saltillo@municipio.gob", "ADMINISTRADOR");
             SesionUsuario.getInstance().iniciar(demoUser);
         }
@@ -42,7 +49,7 @@ public class MainNavigationController {
         this.shellView.setNavConsultaListener(e -> navegarA("CONSULTA"));
         this.shellView.setNavActividadesListener(e -> navegarA("ACTIVIDADES"));
         this.shellView.setNavCuadrillasListener(e -> navegarA("CUADRILLAS"));
-        this.shellView.setNavColoniasListener(e -> navegarA("COLONIAS"));
+        this.shellView.setNavCatalogosListener(e -> navegarA("CATALOGOS"));
         this.shellView.setCerrarSesionListener(this::onCerrarSesionSolicitado);
         this.shellView.setCerrarVentanaListener(new WindowAdapter() {
             @Override

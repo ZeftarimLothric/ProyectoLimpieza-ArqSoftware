@@ -92,6 +92,19 @@ public class UiIcons {
     }
 
     /**
+     * Icono para Catálogos del Sistema (Capas / Carpetas organizadas).
+     */
+    public static Icon getCatalogosIcon(Color color, int size) {
+        return new VectorIcon(size, size, (g2, w, h) -> {
+            g2.setColor(color);
+            g2.setStroke(new BasicStroke(1.5f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+            g2.draw(new RoundRectangle2D.Float(2, 2, w - 5, 4, 2, 2));
+            g2.draw(new RoundRectangle2D.Float(2, 7, w - 5, 4, 2, 2));
+            g2.draw(new RoundRectangle2D.Float(2, 12, w - 5, 3, 2, 2));
+        });
+    }
+
+    /**
      * Icono de Búsqueda / Consulta (Lupa).
      */
     public static Icon getSearchIcon(Color color, int size) {

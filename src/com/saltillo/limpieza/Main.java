@@ -5,11 +5,18 @@ import com.saltillo.limpieza.controllers.ConsultaActividadesController;
 import com.saltillo.limpieza.controllers.DashboardController;
 import com.saltillo.limpieza.controllers.LoginController;
 import com.saltillo.limpieza.controllers.MainNavigationController;
+import com.saltillo.limpieza.controllers.catalogos.ColoniaController;
+import com.saltillo.limpieza.controllers.catalogos.EmpleadoController;
+import com.saltillo.limpieza.controllers.catalogos.TipoActividadController;
+import com.saltillo.limpieza.controllers.catalogos.UsuarioController;
 import com.saltillo.limpieza.database.ConexionBD;
 import com.saltillo.limpieza.repositories.IDashboardRepository;
 import com.saltillo.limpieza.repositories.MockActividadRepository;
 import com.saltillo.limpieza.repositories.MockDashboardRepository;
 import com.saltillo.limpieza.repositories.MockEvidenciaRepository;
+import com.saltillo.limpieza.repositories.SqlColoniaRepository;
+import com.saltillo.limpieza.repositories.SqlEmpleadoRepository;
+import com.saltillo.limpieza.repositories.SqlTipoActividadRepository;
 import com.saltillo.limpieza.repositories.SqlUsuarioRepository;
 import com.saltillo.limpieza.services.EvidenciaStorageService;
 import com.saltillo.limpieza.session.SesionUsuario;
@@ -20,6 +27,11 @@ import com.saltillo.limpieza.views.MainShellView;
 import com.saltillo.limpieza.views.PlaceholderModuleView;
 import com.saltillo.limpieza.views.actividades.ActividadFormView;
 import com.saltillo.limpieza.views.actividades.ActividadListView;
+import com.saltillo.limpieza.views.catalogos.CatalogosView;
+import com.saltillo.limpieza.views.catalogos.ColoniaView;
+import com.saltillo.limpieza.views.catalogos.EmpleadoView;
+import com.saltillo.limpieza.views.catalogos.TipoActividadView;
+import com.saltillo.limpieza.views.catalogos.UsuarioView;
 
 import javax.swing.*;
 import java.awt.event.WindowAdapter;
@@ -82,8 +94,12 @@ public class Main {
      * Construye y muestra el Shell principal con los módulos y limpieza de cierre seguro (Issue #15).
      */
     public static void abrirShell() {
-        // 1. REPOSITORIO (Inversión de dependencias mediante contrato
-        // IDashboardRepository)
+        if (!SesionUsuario.getInstance().estaActiva()) {
+            mostrarLogin();
+            return;
+        }
+
+        // 1. REPOSITORIO (TODO(#17): sustituir MockDashboardRepository por SqlDashboardRepository)
         IDashboardRepository dashboardRepo = new MockDashboardRepository();
 
         // 2. VISTAS DEL SISTEMA
@@ -92,21 +108,25 @@ public class Main {
         ConsultaActividadesView consultaView = new ConsultaActividadesView();
         ActividadListView actividadesView = new ActividadListView();
 
-        // Placeholders modulares para los compañeros de equipo
+        // Módulo real de Catálogos (Issue #8)
+        UsuarioView usuariosView = new UsuarioView();
+        EmpleadoView empleadosView = new EmpleadoView();
+        ColoniaView coloniasView = new ColoniaView();
+        TipoActividadView tiposView = new TipoActividadView();
+
+        CatalogosView catalogosView = new CatalogosView();
+        catalogosView.agregarCatalogo("Usuarios", usuariosView);
+        catalogosView.agregarCatalogo("Empleados", empleadosView);
+        catalogosView.agregarCatalogo("Colonias", coloniasView);
+        catalogosView.agregarCatalogo("Tipos de actividad", tiposView);
+
+        // TODO(#9): reemplazar PlaceholderModuleView cuando esté listo CuadrillaView/CuadrillaController (#9)
         PlaceholderModuleView moduloCuadrillas = new PlaceholderModuleView(
                 "CUADRILLAS",
                 "Módulo: Catálogo de Cuadrillas y Jefes",
-                "Integrante 2 (Acceso a Datos & CRUDs)",
+                "Integrante 2 (Eli - Issue #9)",
                 "Mantenimiento de cuadrillas (CRUD), altas, bajas y cambios de jefes de cuadrilla, " +
                         "asignación de turnos y personal operativo.",
-                dashboardRepo);
-
-        PlaceholderModuleView moduloColonias = new PlaceholderModuleView(
-                "COLONIAS",
-                "Módulo: Catálogo de Colonias (Sepomex Saltillo)",
-                "Integrante 1 (Base de Datos & Modelo Core)",
-                "Carga masiva e indexación del catálogo oficial de códigos postales y colonias " +
-                        "del Municipio de Saltillo a partir de SEPOMEX.",
                 dashboardRepo);
 
         // 3. REGISTRO MODULAR EN EL CONTENT HOST DEL SHELL (Desacoplamiento total)
@@ -114,12 +134,13 @@ public class Main {
         shellView.registrarModulo("CONSULTA", consultaView);
         shellView.registrarModulo("ACTIVIDADES", actividadesView);
         shellView.registrarModulo("CUADRILLAS", moduloCuadrillas);
-        shellView.registrarModulo("COLONIAS", moduloColonias);
+        shellView.registrarModulo("CATALOGOS", catalogosView);
 
         // 4. CONTROLADORES (Orquestación MVC y Patrón Observer)
         DashboardController dashboardController = new DashboardController(dashboardView, dashboardRepo);
         ConsultaActividadesController consultaController = new ConsultaActividadesController(consultaView,
                 dashboardRepo);
+        // TODO(#18): sustituir MockActividadRepository y MockEvidenciaRepository por Sql*Repository
         ActividadController actividadController = new ActividadController(
                 actividadesView,
                 new ActividadFormView(),
@@ -127,7 +148,13 @@ public class Main {
                 new MockEvidenciaRepository(),
                 dashboardRepo,
                 new EvidenciaStorageService());
-        MainNavigationController navigationController = new MainNavigationController(shellView);
+
+        new UsuarioController(usuariosView, new SqlUsuarioRepository());
+        new EmpleadoController(empleadosView, new SqlEmpleadoRepository());
+        new ColoniaController(coloniasView, new SqlColoniaRepository());
+        new TipoActividadController(tiposView, new SqlTipoActividadRepository());
+
+        MainNavigationController navigationController = new MainNavigationController(shellView, true);
         navigationController.registrarLimpiezaAlCerrar(dashboardController::destruir);
         navigationController.registrarLimpiezaAlCerrar(consultaController::destruir);
         navigationController.registrarLimpiezaAlCerrar(Main::cerrarConexionSiExiste);
