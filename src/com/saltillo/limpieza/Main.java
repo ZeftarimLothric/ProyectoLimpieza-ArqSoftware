@@ -7,6 +7,7 @@ import com.saltillo.limpieza.controllers.DashboardController;
 import com.saltillo.limpieza.controllers.LoginController;
 import com.saltillo.limpieza.controllers.MainNavigationController;
 import com.saltillo.limpieza.controllers.catalogos.ColoniaController;
+import com.saltillo.limpieza.controllers.catalogos.CuadrillaController;
 import com.saltillo.limpieza.controllers.catalogos.EmpleadoController;
 import com.saltillo.limpieza.controllers.catalogos.TipoActividadController;
 import com.saltillo.limpieza.controllers.catalogos.UsuarioController;
@@ -26,13 +27,13 @@ import com.saltillo.limpieza.views.ConsultaActividadesView;
 import com.saltillo.limpieza.views.DashboardView;
 import com.saltillo.limpieza.views.LoginView;
 import com.saltillo.limpieza.views.MainShellView;
-import com.saltillo.limpieza.views.PlaceholderModuleView;
 import com.saltillo.limpieza.views.actividades.ActividadDetalleView;
 import com.saltillo.limpieza.views.actividades.ActividadFormView;
 import com.saltillo.limpieza.views.actividades.ActividadListView;
 import com.saltillo.limpieza.views.actividades.ColoniaSelectorDialog;
 import com.saltillo.limpieza.views.catalogos.CatalogosView;
 import com.saltillo.limpieza.views.catalogos.ColoniaView;
+import com.saltillo.limpieza.views.catalogos.CuadrillaView;
 import com.saltillo.limpieza.views.catalogos.EmpleadoView;
 import com.saltillo.limpieza.views.catalogos.TipoActividadView;
 import com.saltillo.limpieza.views.catalogos.UsuarioView;
@@ -45,21 +46,13 @@ import java.nio.file.Path;
 
 /**
  * Punto de entrada principal de la aplicación.
- * 
- * Composition Root (Inyección de Dependencias manual y cableado MVC).
- * 
- * Cumplimiento de Contratos e Issues:
- * - Issue #4: SesionUsuario y contratos base.
- * - Issue #16: Consulta de actividades con filtros (Requisito 11 de rúbrica).
- * 
- * =============================================================================
- * GUÍA DE INTEGRACIÓN PARA EL EQUIPO:
- * 1. INTEGRANTE 1 & 2 (Ximena & Eli - Issue #17):
- * Al terminar la BD MySQL, sustituir en la línea 48:
- * IDashboardRepository dashboardRepo = new MockDashboardRepository();
- * por:
- * IDashboardRepository dashboardRepo = new SqlDashboardRepository();
- * =============================================================================
+ *
+ * Composition Root (Inyección de Dependencias manual y cableado MVC completo):
+ * - Arranque en LoginView (#7) con sesión obligatoria mediante SesionUsuario (#4, #19).
+ * - Módulos reales conectados a MySQL: Dashboard (#17), Consulta (#16),
+ *   Actividades/Evidencias/Colonias/Detalle/Observer (#10, #11, #12, #13, #14, #18),
+ *   Cuadrillas (#9) y Catálogos (#8).
+ * - Cierre seguro de observadores, conexión MySQL y sesión (#15).
  */
 public class Main {
 
@@ -103,14 +96,18 @@ public class Main {
             return;
         }
 
-        // 1. REPOSITORIO #17:
+        // 1. REPOSITORIOS REALES (MySQL)
         IDashboardRepository dashboardRepo = new SqlDashboardRepository();
+        SqlCuadrillaRepository cuadrillaRepo = new SqlCuadrillaRepository();
+        SqlColoniaRepository coloniaRepo = new SqlColoniaRepository();
+        SqlUsuarioRepository usuarioRepo = new SqlUsuarioRepository();
 
         // 2. VISTAS DEL SISTEMA
         MainShellView shellView = new MainShellView();
         DashboardView dashboardView = new DashboardView();
         ConsultaActividadesView consultaView = new ConsultaActividadesView();
         ActividadListView actividadesView = new ActividadListView();
+        CuadrillaView cuadrillasView = new CuadrillaView();
 
         // Módulo real de Catálogos (Issue #8)
         UsuarioView usuariosView = new UsuarioView();
@@ -124,20 +121,11 @@ public class Main {
         catalogosView.agregarCatalogo("Colonias", coloniasView);
         catalogosView.agregarCatalogo("Tipos de actividad", tiposView);
 
-        // TODO(#9): reemplazar PlaceholderModuleView cuando esté listo CuadrillaView/CuadrillaController (#9)
-        PlaceholderModuleView moduloCuadrillas = new PlaceholderModuleView(
-                "CUADRILLAS",
-                "Módulo: Catálogo de Cuadrillas y Jefes",
-                "Integrante 2 (Eli - Issue #9)",
-                "Mantenimiento de cuadrillas (CRUD), altas, bajas y cambios de jefes de cuadrilla, " +
-                        "asignación de turnos y personal operativo.",
-                dashboardRepo);
-
         // 3. REGISTRO MODULAR EN EL CONTENT HOST DEL SHELL (Desacoplamiento total)
         shellView.registrarModulo("DASHBOARD", dashboardView);
         shellView.registrarModulo("CONSULTA", consultaView);
         shellView.registrarModulo("ACTIVIDADES", actividadesView);
-        shellView.registrarModulo("CUADRILLAS", moduloCuadrillas);
+        shellView.registrarModulo("CUADRILLAS", cuadrillasView);
         shellView.registrarModulo("CATALOGOS", catalogosView);
 
         // 4. CONTROLADORES (Orquestación MVC y Patrón Observer)
@@ -150,13 +138,14 @@ public class Main {
                 new ActividadDetalleView(),
                 new SqlActividadRepository(),
                 new SqlEvidenciaRepository(),
-                new SqlCuadrillaRepository(),
+                cuadrillaRepo,
                 new EvidenciaStorageService(),
-                new ColoniaSelectorController(new ColoniaSelectorDialog(), new SqlColoniaRepository()));
+                new ColoniaSelectorController(new ColoniaSelectorDialog(), coloniaRepo));
 
-        new UsuarioController(usuariosView, new SqlUsuarioRepository());
+        new CuadrillaController(cuadrillasView, cuadrillaRepo);
+        new UsuarioController(usuariosView, usuarioRepo);
         new EmpleadoController(empleadosView, new SqlEmpleadoRepository());
-        new ColoniaController(coloniasView, new SqlColoniaRepository());
+        new ColoniaController(coloniasView, coloniaRepo);
         new TipoActividadController(tiposView, new SqlTipoActividadRepository());
 
         MainNavigationController navigationController = new MainNavigationController(shellView, true);
