@@ -10,6 +10,7 @@ import com.saltillo.limpieza.patterns.observer.ActividadEventBus;
 import com.saltillo.limpieza.repositories.IActividadRepository;
 import com.saltillo.limpieza.repositories.ICuadrillaPersonalRepository;
 import com.saltillo.limpieza.repositories.IEvidenciaRepository;
+import com.saltillo.limpieza.repositories.ReglaNegocioException;
 import com.saltillo.limpieza.repositories.RepositorioException;
 import com.saltillo.limpieza.services.EvidenciaInvalidaException;
 import com.saltillo.limpieza.services.EvidenciaStorageService;
@@ -39,6 +40,7 @@ public class ActividadController {
 
     private static final int SIN_ACTIVIDAD = 0;
     private static final String ESTADO_COMPLETADA = "COMPLETADA";
+    private static final int MAX_TEXTO = 200; // LUGAR_ESPECIFICO y DESCRIPCION son varchar(200) en la BD
     private static final DateTimeFormatter FORMATO_FECHA =
             DateTimeFormatter.ofPattern("dd/MM/uuuu HH:mm").withResolverStyle(ResolverStyle.STRICT);
 
@@ -125,6 +127,10 @@ public class ActividadController {
         if (cuadrilla == null) errores.add("Selecciona una cuadrilla.");
         if (tipo == null) errores.add("Selecciona un tipo de actividad.");
         if (lugar.isEmpty()) errores.add("Escribe el lugar específico.");
+        if (lugar.length() > MAX_TEXTO) errores.add("El lugar específico no puede superar los " + MAX_TEXTO + " caracteres.");
+        if (formView.getDescripcion().trim().length() > MAX_TEXTO) {
+            errores.add("La descripción no puede superar los " + MAX_TEXTO + " caracteres.");
+        }
         if (coloniasEnEdicion.isEmpty()) errores.add("Elige al menos una colonia atendida.");
 
         LocalDateTime programada = leerFecha(formView.getFechaProgramada(), "programada", errores);
@@ -156,6 +162,9 @@ public class ActividadController {
                 actividadRepository.actualizar(actividad);
             }
             evidenciaRepository.reemplazar(idActividad, evidenciaController.getEvidencias());
+        } catch (ReglaNegocioException ex) {
+            formView.mostrarError(ex.getMessage());
+            return;
         } catch (RepositorioException ex) {
             formView.mostrarError("No se pudo guardar la actividad. Intenta de nuevo.");
             return;
@@ -200,6 +209,9 @@ public class ActividadController {
         try {
             actividadRepository.eliminar(idActividad);
             evidenciaRepository.eliminarPorActividad(idActividad);
+        } catch (ReglaNegocioException ex) {
+            listView.mostrarError(ex.getMessage());
+            return;
         } catch (RepositorioException ex) {
             listView.mostrarError("No se pudo eliminar la actividad. Intenta de nuevo.");
             return;
@@ -292,7 +304,7 @@ public class ActividadController {
     /**
      * Jefe e integrantes de la cuadrilla de la actividad. También se compara el nombre: las actividades de
      * ejemplo (Mock) traen cuadrillas que pueden no existir en la BD, y no se debe mostrar el personal de otra.
-     * TODO(#18): con SqlActividadRepository el ID de cuadrilla siempre será el de la BD.
+     * Con SqlActividadRepository el ID ya es el de la BD; la comparación sigue protegiendo al usar los Mock.
      */
     private void mostrarPersonal(ActividadDetalleDTO actividad) {
         try {
