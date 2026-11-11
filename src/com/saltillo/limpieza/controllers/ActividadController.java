@@ -1,6 +1,7 @@
 package com.saltillo.limpieza.controllers;
 
 import com.saltillo.limpieza.models.dto.ActividadDetalleDTO;
+import com.saltillo.limpieza.models.entities.Colonia;
 import com.saltillo.limpieza.repositories.IActividadRepository;
 import com.saltillo.limpieza.repositories.IDashboardRepository;
 import com.saltillo.limpieza.repositories.IEvidenciaRepository;
@@ -23,7 +24,6 @@ import java.util.List;
  * Arquitectura MVC Estricta: las vistas solo hablan con este controlador, que
  * valida los datos del formulario y coordina repositorios y evidencias.
  *
- * TODO(#11): capturar las colonias con ColoniaSelectorDialog; por ahora se conservan las existentes.
  * TODO(#14): publicar en ActividadEventBus al crear, actualizar y eliminar.
  */
 public class ActividadController {
@@ -40,13 +40,15 @@ public class ActividadController {
     private final IDashboardRepository catalogoCuadrillas; // TODO(#3): cambiar por ICuadrillaRepository
     private final EvidenciaStorageService evidenciaService;
     private final EvidenciaController evidenciaController;
+    private final ColoniaSelectorController coloniaSelector;
 
     private int idEnEdicion = SIN_ACTIVIDAD;
-    private List<String> coloniasEnEdicion = new ArrayList<>();
+    private List<Colonia> coloniasEnEdicion = new ArrayList<>();
 
     public ActividadController(ActividadListView listView, ActividadFormView formView,
                                IActividadRepository actividadRepository, IEvidenciaRepository evidenciaRepository,
-                               IDashboardRepository catalogoCuadrillas, EvidenciaStorageService evidenciaService) {
+                               IDashboardRepository catalogoCuadrillas, EvidenciaStorageService evidenciaService,
+                               ColoniaSelectorController coloniaSelector) {
         this.listView = listView;
         this.formView = formView;
         this.actividadRepository = actividadRepository;
@@ -54,6 +56,7 @@ public class ActividadController {
         this.catalogoCuadrillas = catalogoCuadrillas;
         this.evidenciaService = evidenciaService;
         this.evidenciaController = new EvidenciaController(formView.getEvidenciaPanel(), evidenciaService);
+        this.coloniaSelector = coloniaSelector;
 
         this.formView.poblarCuadrillas(catalogoCuadrillas.obtenerNombresCuadrillas());
         this.formView.poblarTipos(actividadRepository.listarTiposActividad());
@@ -64,6 +67,8 @@ public class ActividadController {
         this.listView.setFiltroEstadoListener(this::onFiltroCambiado);
         this.formView.setGuardarListener(this::onGuardarSolicitado);
         this.formView.setCancelarListener(this::onCancelarSolicitado);
+        this.formView.setElegirColoniasListener(this::onElegirColoniasSolicitado);
+        this.formView.setQuitarColoniasListener(this::onQuitarColoniasSolicitado);
 
         refrescarLista();
     }
@@ -72,6 +77,7 @@ public class ActividadController {
         idEnEdicion = SIN_ACTIVIDAD;
         coloniasEnEdicion = new ArrayList<>();
         formView.limpiar();
+        formView.mostrarColonias(coloniasEnEdicion);
         evidenciaController.cargar(List.of());
         formView.abrir(listView, "Nueva actividad");
     }
@@ -85,7 +91,8 @@ public class ActividadController {
         }
 
         idEnEdicion = idActividad;
-        coloniasEnEdicion = new ArrayList<>(actividad.getColonias());
+        coloniasEnEdicion = new ArrayList<>(coloniaSelector.resolverNombres(actividad.getColonias()));
+        formView.mostrarColonias(coloniasEnEdicion);
         formView.mostrarDatos(actividad.getNombreCuadrilla(), actividad.getTipoLimpieza(), actividad.getLugarEspecifico(),
                 actividad.getFechaHoraFormateada(), actividad.getFechaRealizacionFormateada(),
                 actividad.getEstado(), actividad.getObservaciones());
@@ -103,6 +110,7 @@ public class ActividadController {
         if (cuadrilla == null) errores.add("Selecciona una cuadrilla.");
         if (tipo == null) errores.add("Selecciona un tipo de actividad.");
         if (lugar.isEmpty()) errores.add("Escribe el lugar específico.");
+        if (coloniasEnEdicion.isEmpty()) errores.add("Elige al menos una colonia atendida.");
 
         LocalDateTime programada = leerFecha(formView.getFechaProgramada(), "programada", errores);
         LocalDateTime realizada = leerFecha(formView.getFechaRealizacion(), "de realización", errores);
@@ -117,7 +125,7 @@ public class ActividadController {
         }
 
         ActividadDetalleDTO actividad = new ActividadDetalleDTO(idEnEdicion, catalogoCuadrillas.obtenerIdPorNombre(cuadrilla),
-                cuadrilla, coloniasEnEdicion, tipo, lugar, estado, programada, formView.getDescripcion().trim(), realizada);
+                cuadrilla, coloniasEnEdicion.stream().map(Colonia::getNombre).toList(), tipo, lugar, estado, programada, formView.getDescripcion().trim(), realizada);
 
         int idActividad = idEnEdicion;
         if (idEnEdicion == SIN_ACTIVIDAD) {
@@ -130,6 +138,18 @@ public class ActividadController {
 
         formView.cerrar();
         refrescarLista();
+    }
+
+    public void elegirColonias() {
+        coloniaSelector.seleccionar(formView, coloniasEnEdicion).ifPresent(elegidas -> {
+            coloniasEnEdicion = new ArrayList<>(elegidas);
+            formView.mostrarColonias(coloniasEnEdicion);
+        });
+    }
+
+    public void quitarColonias(List<Colonia> colonias) {
+        coloniasEnEdicion.removeIf(c -> colonias.stream().anyMatch(m -> ColoniaSelectorController.mismaColonia(c, m)));
+        formView.mostrarColonias(coloniasEnEdicion);
     }
 
     public void cancelar() {
@@ -185,6 +205,14 @@ public class ActividadController {
 
     private void onCancelarSolicitado(ActionEvent e) {
         cancelar();
+    }
+
+    private void onElegirColoniasSolicitado(ActionEvent e) {
+        elegirColonias();
+    }
+
+    private void onQuitarColoniasSolicitado(ActionEvent e) {
+        quitarColonias(formView.getColoniasMarcadas());
     }
 
     private LocalDateTime leerFecha(String texto, String etiqueta, List<String> errores) {

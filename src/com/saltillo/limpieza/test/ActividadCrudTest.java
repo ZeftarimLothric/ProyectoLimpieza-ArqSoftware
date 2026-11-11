@@ -1,15 +1,19 @@
 package com.saltillo.limpieza.test;
 
 import com.saltillo.limpieza.controllers.ActividadController;
+import com.saltillo.limpieza.controllers.ColoniaSelectorController;
 import com.saltillo.limpieza.models.dto.ActividadDetalleDTO;
+import com.saltillo.limpieza.models.entities.Colonia;
 import com.saltillo.limpieza.repositories.IActividadRepository;
 import com.saltillo.limpieza.repositories.IEvidenciaRepository;
 import com.saltillo.limpieza.repositories.MockActividadRepository;
+import com.saltillo.limpieza.repositories.MockColoniaRepository;
 import com.saltillo.limpieza.repositories.MockDashboardRepository;
 import com.saltillo.limpieza.repositories.MockEvidenciaRepository;
 import com.saltillo.limpieza.services.EvidenciaStorageService;
 import com.saltillo.limpieza.views.actividades.ActividadFormView;
 import com.saltillo.limpieza.views.actividades.ActividadListView;
+import com.saltillo.limpieza.views.actividades.ColoniaSelectorDialog;
 
 import javax.imageio.ImageIO;
 import java.awt.Component;
@@ -22,13 +26,35 @@ import java.util.List;
 import java.util.stream.Stream;
 
 /**
- * Pruebas del CRUD de actividades (Integrante 3 - Issue #10).
+ * Pruebas del CRUD de actividades (Integrante 3 - Issues #10 y #11).
  * Trabaja en una carpeta temporal que se borra al terminar.
  */
 public class ActividadCrudTest {
 
     private static final String CUADRILLA = "Cuadrilla Saltillo 2000";
     private static final String TIPO = "Lavado de Espacios Públicos";
+    private static final MockColoniaRepository CATALOGO = new MockColoniaRepository();
+
+    /** Simula al usuario en el selector: agrega las colonias indicadas y acepta. */
+    private static class SelectorDePrueba extends ColoniaSelectorDialog {
+        private static final long serialVersionUID = 1L;
+        private ColoniaSelectorController controller;
+        private List<Colonia> aElegir = List.of();
+
+        @Override
+        public void abrir(Component padre) {
+            controller.agregar(aElegir);
+            controller.aceptar();
+        }
+
+        @Override
+        public void cerrar() {
+        }
+
+        @Override
+        public void mostrarError(String mensaje) {
+        }
+    }
 
     /** Evita los diálogos modales para que la prueba no espere al usuario. */
     private static class ListaDePrueba extends ActividadListView {
@@ -90,12 +116,15 @@ public class ActividadCrudTest {
         IActividadRepository repo = new MockActividadRepository();
         ListaDePrueba lista = new ListaDePrueba();
         FormDePrueba form = new FormDePrueba();
-        ActividadController controller = crearController(lista, form, repo, new MockEvidenciaRepository(), raiz);
+        SelectorDePrueba selector = new SelectorDePrueba();
+        ActividadController controller = crearController(lista, form, repo, new MockEvidenciaRepository(), raiz, selector);
         int totalInicial = repo.listar(null).size();
 
         controller.nuevaActividad();
         assert form.abierto : "El formulario debe abrirse";
         form.mostrarDatos(CUADRILLA, TIPO, "  Parque Las Maravillas  ", "15/11/2026 08:30", "", "PROGRAMADA", "Lavado general");
+        selector.aElegir = CATALOGO.buscarPorNombreOCodigoPostal("Centro");
+        controller.elegirColonias();
         controller.guardar();
         assert !form.abierto : "El formulario debe cerrarse al guardar";
         assert repo.listar(null).size() == totalInicial + 1 : "Debe agregarse una actividad";
@@ -106,6 +135,7 @@ public class ActividadCrudTest {
         assert creada.getIdCuadrilla() == 6 : "Debe resolverse el ID de la cuadrilla";
         assert "Parque Las Maravillas".equals(creada.getLugarEspecifico()) : "El lugar debe guardarse sin espacios sobrantes";
         assert creada.getFechaRealizacion() == null : "La fecha de realización es opcional";
+        assert creada.getColonias().equals(List.of("Centro Histórico")) : "Deben guardarse las colonias elegidas";
 
         controller.editarActividad(id);
         form.mostrarDatos(CUADRILLA, TIPO, "Parque Nuevo", "15/11/2026 08:30", "15/11/2026 11:00", "COMPLETADA", "Terminado");
@@ -113,6 +143,7 @@ public class ActividadCrudTest {
         ActividadDetalleDTO editada = repo.buscarPorId(id);
         assert "COMPLETADA".equals(editada.getEstado()) : "El estado debe actualizarse";
         assert "15/11/2026 11:00".equals(editada.getFechaRealizacionFormateada()) : "La fecha de realización debe actualizarse";
+        assert editada.getColonias().equals(List.of("Centro Histórico")) : "Editar debe conservar las colonias";
         assert repo.listar(null).size() == totalInicial + 1 : "Editar no debe crear otra actividad";
 
         lista.confirmar = false;
@@ -129,7 +160,8 @@ public class ActividadCrudTest {
         System.out.print("[TEST 2] Verificando validaciones del formulario... ");
         IActividadRepository repo = new MockActividadRepository();
         FormDePrueba form = new FormDePrueba();
-        ActividadController controller = crearController(new ListaDePrueba(), form, repo, new MockEvidenciaRepository(), raiz);
+        SelectorDePrueba selector = new SelectorDePrueba();
+        ActividadController controller = crearController(new ListaDePrueba(), form, repo, new MockEvidenciaRepository(), raiz, selector);
         int total = repo.listar(null).size();
 
         controller.nuevaActividad();
@@ -137,6 +169,7 @@ public class ActividadCrudTest {
         assert form.ultimoError.contains("Selecciona una cuadrilla.") : "Debe exigir cuadrilla";
         assert form.ultimoError.contains("Selecciona un tipo de actividad.") : "Debe exigir tipo";
         assert form.ultimoError.contains("Escribe el lugar específico.") : "Debe exigir lugar";
+        assert form.ultimoError.contains("Elige al menos una colonia atendida.") : "Debe exigir colonia";
         assert form.ultimoError.contains("Escribe la fecha programada.") : "Debe exigir fecha";
         assert form.abierto : "Con errores el formulario sigue abierto";
 
@@ -144,12 +177,19 @@ public class ActividadCrudTest {
         controller.guardar();
         assert form.ultimoError.contains("La fecha programada debe tener el formato") : "Debe rechazar fechas inexistentes";
 
+        selector.aElegir = CATALOGO.buscarPorNombreOCodigoPostal("Centro");
+        controller.elegirColonias();
         form.mostrarDatos(CUADRILLA, TIPO, "Lugar", "15/11/2026 08:00", "", "COMPLETADA", "");
         controller.guardar();
         assert form.ultimoError.equals("Una actividad completada necesita fecha de realización.") : "Completada exige realización";
 
+        controller.quitarColonias(CATALOGO.buscarPorNombreOCodigoPostal("Centro"));
+        form.mostrarDatos(CUADRILLA, TIPO, "Lugar", "15/11/2026 08:00", "", "PROGRAMADA", "");
+        controller.guardar();
+        assert form.ultimoError.equals("Elige al menos una colonia atendida.") : "Quitar la única colonia debe impedir guardar";
+
         assert repo.listar(null).size() == total : "Nada inválido debe guardarse";
-        System.out.println("PASO (obligatorios, fechas y estado completada)");
+        System.out.println("PASO (obligatorios, colonias, fechas y estado completada)");
     }
 
     private static void testFiltroPorEstado() {
@@ -172,7 +212,7 @@ public class ActividadCrudTest {
         IEvidenciaRepository evidencias = new MockEvidenciaRepository();
         FormDePrueba form = new FormDePrueba();
         ActividadController controller = new ActividadController(new ListaDePrueba(), form, repo, evidencias,
-                new MockDashboardRepository(), servicio);
+                new MockDashboardRepository(), servicio, conectar(new SelectorDePrueba()));
         String nombre = guardarImagen(servicio, raiz);
 
         int id = repo.listar(null).get(0).getIdActividad();
@@ -190,9 +230,15 @@ public class ActividadCrudTest {
     }
 
     private static ActividadController crearController(ActividadListView lista, ActividadFormView form, IActividadRepository repo,
-                                                       IEvidenciaRepository evidencias, Path raiz) {
+                                                       IEvidenciaRepository evidencias, Path raiz, SelectorDePrueba selector) {
         return new ActividadController(lista, form, repo, evidencias, new MockDashboardRepository(),
-                new EvidenciaStorageService(raiz.resolve("evidencias")));
+                new EvidenciaStorageService(raiz.resolve("evidencias")), conectar(selector));
+    }
+
+    private static ColoniaSelectorController conectar(SelectorDePrueba selector) {
+        ColoniaSelectorController controller = new ColoniaSelectorController(selector, CATALOGO);
+        selector.controller = controller;
+        return controller;
     }
 
     private static ActividadDetalleDTO ultimaActividad(IActividadRepository repo) {

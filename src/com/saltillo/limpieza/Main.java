@@ -1,6 +1,7 @@
 package com.saltillo.limpieza;
 
 import com.saltillo.limpieza.controllers.ActividadController;
+import com.saltillo.limpieza.controllers.ColoniaSelectorController;
 import com.saltillo.limpieza.controllers.ConsultaActividadesController;
 import com.saltillo.limpieza.controllers.DashboardController;
 import com.saltillo.limpieza.controllers.LoginController;
@@ -27,6 +28,7 @@ import com.saltillo.limpieza.views.MainShellView;
 import com.saltillo.limpieza.views.PlaceholderModuleView;
 import com.saltillo.limpieza.views.actividades.ActividadFormView;
 import com.saltillo.limpieza.views.actividades.ActividadListView;
+import com.saltillo.limpieza.views.actividades.ColoniaSelectorDialog;
 import com.saltillo.limpieza.views.catalogos.CatalogosView;
 import com.saltillo.limpieza.views.catalogos.ColoniaView;
 import com.saltillo.limpieza.views.catalogos.EmpleadoView;
@@ -147,7 +149,8 @@ public class Main {
                 new MockActividadRepository(),
                 new MockEvidenciaRepository(),
                 dashboardRepo,
-                new EvidenciaStorageService());
+                new EvidenciaStorageService(),
+                new ColoniaSelectorController(new ColoniaSelectorDialog(), new SqlColoniaRepository()));
 
         new UsuarioController(usuariosView, new SqlUsuarioRepository());
         new EmpleadoController(empleadosView, new SqlEmpleadoRepository());
