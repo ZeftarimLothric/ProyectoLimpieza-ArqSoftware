@@ -1,10 +1,14 @@
 package com.saltillo.limpieza.controllers;
 
 import com.saltillo.limpieza.models.dto.ActividadDetalleDTO;
+import com.saltillo.limpieza.models.dto.ActividadEventDTO;
+import com.saltillo.limpieza.models.dto.TipoEventoActividad;
 import com.saltillo.limpieza.models.entities.Colonia;
+import com.saltillo.limpieza.patterns.observer.ActividadEventBus;
 import com.saltillo.limpieza.repositories.IActividadRepository;
 import com.saltillo.limpieza.repositories.IDashboardRepository;
 import com.saltillo.limpieza.repositories.IEvidenciaRepository;
+import com.saltillo.limpieza.repositories.RepositorioException;
 import com.saltillo.limpieza.services.EvidenciaInvalidaException;
 import com.saltillo.limpieza.services.EvidenciaStorageService;
 import com.saltillo.limpieza.views.actividades.ActividadFormView;
@@ -19,12 +23,13 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Controlador del CRUD de Actividades (Integrante 3 - Issue #10).
+ * Controlador del CRUD de Actividades (Integrante 3 - Issues #10 y #14).
  *
  * Arquitectura MVC Estricta: las vistas solo hablan con este controlador, que
  * valida los datos del formulario y coordina repositorios y evidencias.
  *
- * TODO(#14): publicar en ActividadEventBus al crear, actualizar y eliminar.
+ * Patrón Observer: tras crear, actualizar o eliminar con éxito publica un evento en
+ * ActividadEventBus. No conoce a quién le llega (Dashboard, Consulta u otros).
  */
 public class ActividadController {
 
@@ -127,17 +132,22 @@ public class ActividadController {
         ActividadDetalleDTO actividad = new ActividadDetalleDTO(idEnEdicion, catalogoCuadrillas.obtenerIdPorNombre(cuadrilla),
                 cuadrilla, coloniasEnEdicion.stream().map(Colonia::getNombre).toList(), tipo, lugar, estado, programada, formView.getDescripcion().trim(), realizada);
 
-        int idActividad = idEnEdicion;
-        if (idEnEdicion == SIN_ACTIVIDAD) {
-            idActividad = actividadRepository.guardar(actividad);
-        } else {
-            actividadRepository.actualizar(actividad);
+        boolean esNueva = idEnEdicion == SIN_ACTIVIDAD;
+        try {
+            int idActividad = esNueva ? actividadRepository.guardar(actividad) : idEnEdicion;
+            if (!esNueva) {
+                actividadRepository.actualizar(actividad);
+            }
+            evidenciaRepository.reemplazar(idActividad, evidenciaController.getEvidencias());
+        } catch (RepositorioException ex) {
+            formView.mostrarError("No se pudo guardar la actividad. Intenta de nuevo.");
+            return;
         }
-        evidenciaRepository.reemplazar(idActividad, evidenciaController.getEvidencias());
         evidenciaController.confirmarCambios();
 
         formView.cerrar();
         refrescarLista();
+        publicarEvento(actividad, esNueva ? TipoEventoActividad.CREADA : TipoEventoActividad.ACTUALIZADA);
     }
 
     public void elegirColonias() {
@@ -158,15 +168,28 @@ public class ActividadController {
     }
 
     public void eliminarActividad(int idActividad) {
+        // Los datos se toman antes de borrar: después ya no existen para armar el evento.
+        ActividadDetalleDTO eliminada = actividadRepository.buscarPorId(idActividad);
+        if (eliminada == null) {
+            listView.mostrarError("La actividad seleccionada ya no existe.");
+            refrescarLista();
+            return;
+        }
         if (!listView.confirmarEliminacion("¿Eliminar la actividad #" + idActividad + " y sus evidencias?")) {
             return;
         }
 
         List<String> evidencias = evidenciaRepository.listarPorActividad(idActividad);
-        actividadRepository.eliminar(idActividad);
-        evidenciaRepository.eliminarPorActividad(idActividad);
+        try {
+            actividadRepository.eliminar(idActividad);
+            evidenciaRepository.eliminarPorActividad(idActividad);
+        } catch (RepositorioException ex) {
+            listView.mostrarError("No se pudo eliminar la actividad. Intenta de nuevo.");
+            return;
+        }
         refrescarLista();
         eliminarArchivos(evidencias);
+        publicarEvento(eliminada, TipoEventoActividad.ELIMINADA);
     }
 
     public void refrescarLista() {
@@ -213,6 +236,16 @@ public class ActividadController {
 
     private void onQuitarColoniasSolicitado(ActionEvent e) {
         quitarColonias(formView.getColoniasMarcadas());
+    }
+
+    private void publicarEvento(ActividadDetalleDTO actividad, TipoEventoActividad tipoEvento) {
+        ActividadEventBus.getInstance().publicarEvento(new ActividadEventDTO(
+                actividad.getIdCuadrilla(),
+                actividad.getNombreCuadrilla(),
+                actividad.getColonias(),
+                actividad.getTipoLimpieza(),
+                actividad.getObservaciones(),
+                tipoEvento));
     }
 
     private LocalDateTime leerFecha(String texto, String etiqueta, List<String> errores) {
