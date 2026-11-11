@@ -16,6 +16,7 @@ import com.saltillo.limpieza.views.DashboardView;
 import com.saltillo.limpieza.views.LoginView;
 import com.saltillo.limpieza.views.MainShellView;
 import com.saltillo.limpieza.views.catalogos.CatalogosView;
+import com.saltillo.limpieza.views.catalogos.CuadrillaView;
 
 import javax.swing.WindowConstants;
 import java.time.LocalDate;
@@ -242,7 +243,12 @@ public class ArchitectureVerificationTest {
         shell.mostrarModulo("CATALOGOS");
         assert "CATALOGOS".equals(shell.getModuloActivoActual()) : "El menú debe poder abrir el módulo CATALOGOS";
 
+        CuadrillaView cuadrillaView = new CuadrillaView();
+        shell.registrarModulo("CUADRILLAS", cuadrillaView);
+        shell.mostrarModulo("CUADRILLAS");
+        assert "CUADRILLAS".equals(shell.getModuloActivoActual()) : "El menú debe poder abrir el módulo CUADRILLAS";
+
         shell.dispose();
-        System.out.println("PASO (Interceptación X, limpieza, sesión obligatoria y módulo CATALOGOS OK)");
+        System.out.println("PASO (Interceptación X, limpieza, sesión obligatoria, CATALOGOS y CUADRILLAS OK)");
     }
 }
