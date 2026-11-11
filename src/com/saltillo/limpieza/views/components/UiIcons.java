@@ -15,58 +15,85 @@ import java.awt.geom.RoundRectangle2D;
 public class UiIcons {
 
     /**
-     * Icono para el Dashboard Ejecutivo (Cuadrícula 2x2 moderna).
+     * Icono para el Dashboard Ejecutivo (Estilo moderno de analítica y métricas: columnas y KPI).
      */
     public static Icon getDashboardIcon(Color color, int size) {
         return new VectorIcon(size, size, (g2, w, h) -> {
             g2.setColor(color);
-            int pad = 2;
-            int gap = 2;
-            int cellW = (w - pad * 2 - gap) / 2;
-            int cellH = (h - pad * 2 - gap) / 2;
+            float pad = w * 0.12f;
+            float barW = (w - pad * 2) / 3.4f;
+            float botY = h - pad;
 
-            g2.fill(new RoundRectangle2D.Float(pad, pad, cellW, cellH, 3, 3));
-            g2.fill(new RoundRectangle2D.Float(pad + cellW + gap, pad, cellW, cellH, 3, 3));
-            g2.fill(new RoundRectangle2D.Float(pad, pad + cellH + gap, cellW, cellH, 3, 3));
-            g2.fill(new RoundRectangle2D.Float(pad + cellW + gap, pad + cellH + gap, cellW, cellH, 3, 3));
+            // Tres barras de métricas redondeadas con diferentes alturas de rendimiento
+            g2.fill(new RoundRectangle2D.Float(pad, botY - (h * 0.42f), barW, h * 0.42f, 2.5f, 2.5f));
+            g2.fill(new RoundRectangle2D.Float(pad + barW * 1.2f, botY - (h * 0.70f), barW, h * 0.70f, 2.5f, 2.5f));
+            g2.fill(new RoundRectangle2D.Float(pad + barW * 2.4f, botY - (h * 0.52f), barW, h * 0.52f, 2.5f, 2.5f));
+
+            // Línea base suave
+            g2.setStroke(new BasicStroke(1.2f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+            g2.drawLine((int) pad, (int) botY, (int) (w - pad), (int) botY);
         });
     }
 
     /**
-     * Icono para Registro de Actividades (Portapapeles / Lista de tareas).
+     * Icono para Registro de Actividades (Escoba / Herramienta de Limpieza Urbana moderna).
      */
     public static Icon getActividadesIcon(Color color, int size) {
         return new VectorIcon(size, size, (g2, w, h) -> {
             g2.setColor(color);
             g2.setStroke(new BasicStroke(1.6f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
 
-            // Tabla / Portapapeles
-            g2.draw(new RoundRectangle2D.Float(2, 3, w - 5, h - 5, 3, 3));
-            // Clip superior
-            g2.drawLine(w / 2 - 3, 3, w / 2 + 3, 3);
-            // Líneas de contenido
-            g2.drawLine(5, 7, w - 6, 7);
-            g2.drawLine(5, 10, w - 6, 10);
-            g2.drawLine(5, 13, w - 9, 13);
+            // Mango inclinado
+            float x1 = w * 0.78f;
+            float y1 = h * 0.14f;
+            float x2 = w * 0.40f;
+            float y2 = h * 0.58f;
+            g2.drawLine((int) x1, (int) y1, (int) x2, (int) y2);
+
+            // Cabeza del cepillo / escoba
+            Path2D.Float broom = new Path2D.Float();
+            broom.moveTo(w * 0.22f, h * 0.52f);
+            broom.lineTo(w * 0.54f, h * 0.68f);
+            broom.lineTo(w * 0.44f, h * 0.88f);
+            broom.lineTo(w * 0.12f, h * 0.72f);
+            broom.closePath();
+            g2.draw(broom);
+
+            // Cerdas / textura de limpieza
+            g2.drawLine((int) (w * 0.24f), (int) (h * 0.76f), (int) (w * 0.36f), (int) (h * 0.82f));
         });
     }
 
     /**
-     * Icono para Catálogo de Cuadrillas (Personas / Equipo).
+     * Icono para Catálogo de Cuadrillas (Equipo de 2 personas con siluetas estilizadas).
      */
     public static Icon getCuadrillasIcon(Color color, int size) {
         return new VectorIcon(size, size, (g2, w, h) -> {
             g2.setColor(color);
-            g2.setStroke(new BasicStroke(1.5f));
+            g2.setStroke(new BasicStroke(1.4f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
 
-            // Cabeza central
-            g2.drawOval(w / 2 - 3, 2, 6, 6);
-            // Cuerpo central
-            g2.drawArc(w / 2 - 6, 9, 12, 10, 0, 180);
+            // Integrante 1 (Jefe / Central)
+            int headR1 = (int) (w * 0.18f);
+            int cx1 = (int) (w * 0.42f);
+            int cy1 = (int) (h * 0.28f);
+            g2.drawOval(cx1 - headR1, cy1 - headR1, headR1 * 2, headR1 * 2);
 
-            // Cabeza izquierda secundaria
-            g2.drawOval(1, 4, 4, 4);
-            g2.drawArc(0, 9, 8, 8, 20, 140);
+            // Torso integrante 1
+            Path2D.Float torso1 = new Path2D.Float();
+            torso1.moveTo(w * 0.16f, h * 0.88f);
+            torso1.curveTo(w * 0.18f, h * 0.56f, w * 0.66f, h * 0.56f, w * 0.68f, h * 0.88f);
+            g2.draw(torso1);
+
+            // Integrante 2 (Compañero lateral)
+            int headR2 = (int) (w * 0.13f);
+            int cx2 = (int) (w * 0.74f);
+            int cy2 = (int) (h * 0.36f);
+            g2.drawOval(cx2 - headR2, cy2 - headR2, headR2 * 2, headR2 * 2);
+
+            Path2D.Float torso2 = new Path2D.Float();
+            torso2.moveTo(w * 0.62f, h * 0.88f);
+            torso2.curveTo(w * 0.62f, h * 0.62f, w * 0.88f, h * 0.62f, w * 0.90f, h * 0.88f);
+            g2.draw(torso2);
         });
     }
 
@@ -92,33 +119,49 @@ public class UiIcons {
     }
 
     /**
-     * Icono para Catálogos del Sistema (Capas / Carpetas organizadas).
+     * Icono para Catálogos del Sistema (Caja de herramientas / Catálogos maestros modular).
      */
     public static Icon getCatalogosIcon(Color color, int size) {
         return new VectorIcon(size, size, (g2, w, h) -> {
             g2.setColor(color);
             g2.setStroke(new BasicStroke(1.5f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
-            g2.draw(new RoundRectangle2D.Float(2, 2, w - 5, 4, 2, 2));
-            g2.draw(new RoundRectangle2D.Float(2, 7, w - 5, 4, 2, 2));
-            g2.draw(new RoundRectangle2D.Float(2, 12, w - 5, 3, 2, 2));
+
+            // Maletín / Caja maestra
+            float pad = w * 0.14f;
+            float topY = h * 0.34f;
+            float boxW = w - pad * 2;
+            float boxH = h * 0.54f;
+            g2.draw(new RoundRectangle2D.Float(pad, topY, boxW, boxH, 3.5f, 3.5f));
+
+            // Asa superior
+            Path2D.Float handle = new Path2D.Float();
+            handle.moveTo(w * 0.36f, topY);
+            handle.lineTo(w * 0.36f, h * 0.18f);
+            handle.lineTo(w * 0.64f, h * 0.18f);
+            handle.lineTo(w * 0.64f, topY);
+            g2.draw(handle);
+
+            // Broche central
+            g2.drawLine((int) pad, (int) (topY + boxH * 0.38f), (int) (w - pad), (int) (topY + boxH * 0.38f));
+            g2.fillRect((int) (w * 0.44f), (int) (topY + boxH * 0.26f), (int) (w * 0.12f), (int) (boxH * 0.26f));
         });
     }
 
     /**
-     * Icono de Búsqueda / Consulta (Lupa).
+     * Icono de Búsqueda / Consulta (Lupa moderna y estilizada).
      */
     public static Icon getSearchIcon(Color color, int size) {
         return new VectorIcon(size, size, (g2, w, h) -> {
             g2.setColor(color);
             g2.setStroke(new BasicStroke(1.6f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
-            int r = (int) (w * 0.35);
-            int cx = (int) (w * 0.42);
-            int cy = (int) (h * 0.42);
-            g2.drawOval(cx - r, cy - r, r * 2, r * 2);
-            // Mango de la lupa
-            int x1 = (int) (cx + r * 0.7);
-            int y1 = (int) (cy + r * 0.7);
-            g2.drawLine(x1, y1, w - 2, h - 2);
+            float r = w * 0.28f;
+            float cx = w * 0.40f;
+            float cy = h * 0.40f;
+            g2.drawOval((int) (cx - r), (int) (cy - r), (int) (r * 2), (int) (r * 2));
+            // Mango con buen grosor y redondeo
+            float x1 = cx + r * 0.70f;
+            float y1 = cy + r * 0.70f;
+            g2.drawLine((int) x1, (int) y1, (int) (w - w * 0.12f), (int) (h - h * 0.12f));
         });
     }
 
