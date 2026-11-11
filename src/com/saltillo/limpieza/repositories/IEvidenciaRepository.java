@@ -7,7 +7,7 @@ import java.util.List;
  * Solo maneja los nombres de archivo que entrega EvidenciaStorageService.
  *
  * TODO(#2): cambiar los nombres por la entidad Evidencia cuando exista.
- * TODO(#18): crear SqlEvidenciaRepository con este mismo contrato.
+ * Implementaciones: MockEvidenciaRepository (pruebas) y SqlEvidenciaRepository (MySQL, Issue #18).
  */
 public interface IEvidenciaRepository {
 

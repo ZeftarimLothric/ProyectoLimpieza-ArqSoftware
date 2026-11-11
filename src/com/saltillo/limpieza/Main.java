@@ -12,12 +12,12 @@ import com.saltillo.limpieza.controllers.catalogos.TipoActividadController;
 import com.saltillo.limpieza.controllers.catalogos.UsuarioController;
 import com.saltillo.limpieza.database.ConexionBD;
 import com.saltillo.limpieza.repositories.IDashboardRepository;
-import com.saltillo.limpieza.repositories.MockActividadRepository;
 import com.saltillo.limpieza.repositories.MockDashboardRepository;
-import com.saltillo.limpieza.repositories.MockEvidenciaRepository;
+import com.saltillo.limpieza.repositories.SqlActividadRepository;
 import com.saltillo.limpieza.repositories.SqlColoniaRepository;
 import com.saltillo.limpieza.repositories.SqlCuadrillaRepository;
 import com.saltillo.limpieza.repositories.SqlEmpleadoRepository;
+import com.saltillo.limpieza.repositories.SqlEvidenciaRepository;
 import com.saltillo.limpieza.repositories.SqlTipoActividadRepository;
 import com.saltillo.limpieza.repositories.SqlUsuarioRepository;
 import com.saltillo.limpieza.services.EvidenciaStorageService;
@@ -144,13 +144,12 @@ public class Main {
         DashboardController dashboardController = new DashboardController(dashboardView, dashboardRepo);
         ConsultaActividadesController consultaController = new ConsultaActividadesController(consultaView,
                 dashboardRepo);
-        // TODO(#18): sustituir MockActividadRepository y MockEvidenciaRepository por Sql*Repository
         ActividadController actividadController = new ActividadController(
                 actividadesView,
                 new ActividadFormView(),
                 new ActividadDetalleView(),
-                new MockActividadRepository(),
-                new MockEvidenciaRepository(),
+                new SqlActividadRepository(),
+                new SqlEvidenciaRepository(),
                 new SqlCuadrillaRepository(),
                 new EvidenciaStorageService(),
                 new ColoniaSelectorController(new ColoniaSelectorDialog(), new SqlColoniaRepository()));
