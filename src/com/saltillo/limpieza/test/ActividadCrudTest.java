@@ -3,13 +3,18 @@ package com.saltillo.limpieza.test;
 import com.saltillo.limpieza.controllers.ActividadController;
 import com.saltillo.limpieza.controllers.ColoniaSelectorController;
 import com.saltillo.limpieza.models.dto.ActividadDetalleDTO;
+import com.saltillo.limpieza.models.dto.ActividadEventDTO;
+import com.saltillo.limpieza.models.dto.TipoEventoActividad;
 import com.saltillo.limpieza.models.entities.Colonia;
+import com.saltillo.limpieza.patterns.observer.ActividadEventBus;
+import com.saltillo.limpieza.patterns.observer.IObserver;
 import com.saltillo.limpieza.repositories.IActividadRepository;
 import com.saltillo.limpieza.repositories.IEvidenciaRepository;
 import com.saltillo.limpieza.repositories.MockActividadRepository;
 import com.saltillo.limpieza.repositories.MockColoniaRepository;
 import com.saltillo.limpieza.repositories.MockDashboardRepository;
 import com.saltillo.limpieza.repositories.MockEvidenciaRepository;
+import com.saltillo.limpieza.repositories.RepositorioException;
 import com.saltillo.limpieza.services.EvidenciaStorageService;
 import com.saltillo.limpieza.views.actividades.ActividadFormView;
 import com.saltillo.limpieza.views.actividades.ActividadListView;
@@ -21,6 +26,7 @@ import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Stream;
@@ -60,6 +66,8 @@ public class ActividadCrudTest {
     private static class ListaDePrueba extends ActividadListView {
         private static final long serialVersionUID = 1L;
         private boolean confirmar = true;
+        private boolean esperaError;
+        private String ultimoError;
 
         @Override
         public boolean confirmarEliminacion(String mensaje) {
@@ -68,7 +76,43 @@ public class ActividadCrudTest {
 
         @Override
         public void mostrarError(String mensaje) {
-            throw new AssertionError("Error inesperado en la lista: " + mensaje);
+            if (!esperaError) {
+                throw new AssertionError("Error inesperado en la lista: " + mensaje);
+            }
+            ultimoError = mensaje;
+        }
+    }
+
+    /** Observador de prueba: guarda todo lo que publica el bus. */
+    private static class ObservadorDePrueba implements IObserver<ActividadEventDTO> {
+        private final List<ActividadEventDTO> recibidos = new ArrayList<>();
+
+        @Override
+        public void onEvent(ActividadEventDTO evento) {
+            recibidos.add(evento);
+        }
+    }
+
+    /** Simula una base de datos caída para comprobar que una operación fallida no publica eventos. */
+    private static class RepositorioQueFalla extends MockActividadRepository {
+        private boolean fallar;
+
+        @Override
+        public int guardar(ActividadDetalleDTO actividad) {
+            if (fallar) throw new RepositorioException("Sin conexión", null);
+            return super.guardar(actividad);
+        }
+
+        @Override
+        public void actualizar(ActividadDetalleDTO actividad) {
+            if (fallar) throw new RepositorioException("Sin conexión", null);
+            super.actualizar(actividad);
+        }
+
+        @Override
+        public void eliminar(int idActividad) {
+            if (fallar) throw new RepositorioException("Sin conexión", null);
+            super.eliminar(idActividad);
         }
     }
 
@@ -104,6 +148,8 @@ public class ActividadCrudTest {
             testValidaciones(raiz);
             testFiltroPorEstado();
             testEvidenciasDeLaActividad(raiz);
+            testEventosPublicados(raiz);
+            testOperacionFallidaNoPublica(raiz);
         } finally {
             borrarCarpeta(raiz);
         }
@@ -227,6 +273,97 @@ public class ActividadCrudTest {
         assert evidencias.listarPorActividad(id).isEmpty() : "Eliminar la actividad debe borrar sus referencias";
 
         System.out.println("PASO (referencias y archivos consistentes)");
+    }
+
+    private static void testEventosPublicados(Path raiz) {
+        System.out.print("[TEST 5] Verificando eventos CREADA, ACTUALIZADA y ELIMINADA (Issue #14)... ");
+        IActividadRepository repo = new MockActividadRepository();
+        FormDePrueba form = new FormDePrueba();
+        SelectorDePrueba selector = new SelectorDePrueba();
+        ActividadController controller = crearController(new ListaDePrueba(), form, repo, new MockEvidenciaRepository(), raiz, selector);
+        ObservadorDePrueba observador = new ObservadorDePrueba();
+        ActividadEventBus.getInstance().attach(observador);
+        try {
+            controller.nuevaActividad();
+            form.mostrarDatos(CUADRILLA, TIPO, "Parque Las Maravillas", "15/11/2026 08:30", "", "PROGRAMADA", "Lavado general");
+            selector.aElegir = new ArrayList<>(CATALOGO.buscarPorNombreOCodigoPostal("República"));
+            controller.elegirColonias();
+            controller.guardar();
+            assert observador.recibidos.size() == 1 : "Crear debe publicar un evento";
+            ActividadEventDTO creada = observador.recibidos.get(0);
+            assert creada.getTipoEvento() == TipoEventoActividad.CREADA : "El evento debe ser CREADA";
+            assert creada.getIdCuadrilla() == 6 && CUADRILLA.equals(creada.getNombreCuadrilla()) : "Debe llevar la cuadrilla";
+            assert creada.getColonias().equals(List.of("República Oriente", "República Poniente")) : "Debe llevar los nombres de colonias";
+            assert TIPO.equals(creada.getTipoLimpieza()) && "Lavado general".equals(creada.getObservaciones()) : "Debe llevar tipo y observaciones";
+
+            int id = ultimaActividad(repo).getIdActividad();
+            controller.editarActividad(id);
+            form.mostrarDatos(CUADRILLA, TIPO, "Parque Las Maravillas", "15/11/2026 08:30", "", "EN PROCESO", "Avance al 50%");
+            controller.guardar();
+            assert observador.recibidos.size() == 2 : "Editar debe publicar un evento";
+            ActividadEventDTO actualizada = observador.recibidos.get(1);
+            assert actualizada.getTipoEvento() == TipoEventoActividad.ACTUALIZADA : "El evento debe ser ACTUALIZADA";
+            assert "Avance al 50%".equals(actualizada.getObservaciones()) : "Debe llevar los datos nuevos";
+
+            controller.eliminarActividad(id);
+            assert observador.recibidos.size() == 3 : "Eliminar debe publicar un evento";
+            ActividadEventDTO eliminada = observador.recibidos.get(2);
+            assert eliminada.getTipoEvento() == TipoEventoActividad.ELIMINADA : "El evento debe ser ELIMINADA";
+            assert eliminada.getColonias().equals(List.of("República Oriente", "República Poniente"))
+                    : "Debe llevar los datos tomados antes de borrar";
+        } finally {
+            ActividadEventBus.getInstance().detach(observador);
+        }
+        System.out.println("PASO (tres eventos con tipo, cuadrilla y colonias correctos)");
+    }
+
+    private static void testOperacionFallidaNoPublica(Path raiz) {
+        System.out.print("[TEST 6] Verificando que operaciones fallidas o canceladas no publiquen... ");
+        RepositorioQueFalla repo = new RepositorioQueFalla();
+        ListaDePrueba lista = new ListaDePrueba();
+        FormDePrueba form = new FormDePrueba();
+        SelectorDePrueba selector = new SelectorDePrueba();
+        ActividadController controller = crearController(lista, form, repo, new MockEvidenciaRepository(), raiz, selector);
+        ObservadorDePrueba observador = new ObservadorDePrueba();
+        ActividadEventBus.getInstance().attach(observador);
+        try {
+            int id = repo.listar(null).get(0).getIdActividad();
+
+            controller.nuevaActividad();
+            controller.guardar();
+            assert form.ultimoError != null : "Datos inválidos deben rechazarse";
+
+            controller.cancelar();
+            controller.editarActividad(id);
+            controller.cancelar();
+
+            lista.confirmar = false;
+            controller.eliminarActividad(id);
+            lista.confirmar = true;
+
+            repo.fallar = true;
+            controller.nuevaActividad();
+            form.mostrarDatos(CUADRILLA, TIPO, "Lugar", "15/11/2026 08:00", "", "PROGRAMADA", "");
+            selector.aElegir = CATALOGO.buscarPorNombreOCodigoPostal("Centro");
+            controller.elegirColonias();
+            controller.guardar();
+            assert "No se pudo guardar la actividad. Intenta de nuevo.".equals(form.ultimoError) : "Debe avisar del fallo al guardar";
+            assert form.abierto : "Si falla el guardado el formulario sigue abierto";
+
+            controller.editarActividad(id);
+            controller.guardar();
+            assert "No se pudo guardar la actividad. Intenta de nuevo.".equals(form.ultimoError) : "Debe avisar del fallo al actualizar";
+
+            lista.esperaError = true;
+            controller.eliminarActividad(id);
+            assert "No se pudo eliminar la actividad. Intenta de nuevo.".equals(lista.ultimoError) : "Debe avisar del fallo al eliminar";
+            assert repo.buscarPorId(id) != null : "La actividad no debió borrarse";
+
+            assert observador.recibidos.isEmpty() : "No debe publicarse nada: " + observador.recibidos;
+        } finally {
+            ActividadEventBus.getInstance().detach(observador);
+        }
+        System.out.println("PASO (validacion, cancelar, sin confirmar y BD caida no publican)");
     }
 
     private static ActividadController crearController(ActividadListView lista, ActividadFormView form, IActividadRepository repo,
