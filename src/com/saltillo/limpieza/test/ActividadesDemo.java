@@ -4,9 +4,10 @@ import com.saltillo.limpieza.controllers.ActividadController;
 import com.saltillo.limpieza.controllers.ColoniaSelectorController;
 import com.saltillo.limpieza.repositories.MockActividadRepository;
 import com.saltillo.limpieza.repositories.MockColoniaRepository;
-import com.saltillo.limpieza.repositories.MockDashboardRepository;
+import com.saltillo.limpieza.repositories.MockCuadrillaRepository;
 import com.saltillo.limpieza.repositories.MockEvidenciaRepository;
 import com.saltillo.limpieza.services.EvidenciaStorageService;
+import com.saltillo.limpieza.views.actividades.ActividadDetalleView;
 import com.saltillo.limpieza.views.actividades.ActividadFormView;
 import com.saltillo.limpieza.views.actividades.ActividadListView;
 import com.saltillo.limpieza.views.actividades.ColoniaSelectorDialog;
@@ -27,8 +28,8 @@ public class ActividadesDemo {
         ActividadListView lista = new ActividadListView();
         ColoniaSelectorController coloniaSelector = new ColoniaSelectorController(new ColoniaSelectorDialog(),
                 new MockColoniaRepository());
-        new ActividadController(lista, new ActividadFormView(), new MockActividadRepository(),
-                new MockEvidenciaRepository(), new MockDashboardRepository(), new EvidenciaStorageService(), coloniaSelector);
+        new ActividadController(lista, new ActividadFormView(), new ActividadDetalleView(), new MockActividadRepository(),
+                new MockEvidenciaRepository(), new MockCuadrillaRepository(), new EvidenciaStorageService(), coloniaSelector);
 
         JFrame ventana = new JFrame("Demo de Actividades - Issues #10 y #11");
         ventana.setDefaultCloseOperation(WindowConstants.DISPOSE_ON_CLOSE);

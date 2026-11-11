@@ -7,7 +7,10 @@ import com.saltillo.limpieza.views.components.StatusBadgeRenderer;
 import javax.swing.*;
 import javax.swing.table.DefaultTableModel;
 import java.awt.*;
+import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 import java.util.List;
 
 /**
@@ -26,6 +29,8 @@ public class ActividadListView extends JPanel {
     private JButton btnNueva;
     private JButton btnEditar;
     private JButton btnEliminar;
+    private JButton btnVerDetalle;
+    private ActionListener verDetalleListener;
     private JTable tblActividades;
     private DefaultTableModel tableModel;
     private JLabel lblConteo;
@@ -65,6 +70,8 @@ public class ActividadListView extends JPanel {
         btnEliminar = crearBoton("Eliminar", Color.WHITE, new Color(241, 245, 249), new Color(185, 28, 28), true);
         btnEditar = crearBoton("Editar", Color.WHITE, new Color(241, 245, 249), new Color(71, 85, 105), true);
         btnNueva = crearBoton("Nueva actividad", new Color(2, 132, 199), new Color(3, 105, 161), Color.WHITE, false);
+        btnVerDetalle = crearBoton("Ver detalle", Color.WHITE, new Color(241, 245, 249), new Color(3, 105, 161), true);
+        pnlAcciones.add(btnVerDetalle);
         pnlAcciones.add(btnEliminar);
         pnlAcciones.add(btnEditar);
         pnlAcciones.add(btnNueva);
@@ -106,6 +113,17 @@ public class ActividadListView extends JPanel {
         tblActividades.setGridColor(new Color(241, 245, 249));
         tblActividades.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
         tblActividades.setFillsViewportHeight(true);
+        tblActividades.setToolTipText("Doble clic para ver el detalle de la actividad");
+        tblActividades.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseClicked(MouseEvent e) {
+                int fila = tblActividades.rowAtPoint(e.getPoint());
+                if (e.getClickCount() == 2 && fila >= 0 && verDetalleListener != null) {
+                    tblActividades.setRowSelectionInterval(fila, fila);
+                    verDetalleListener.actionPerformed(new ActionEvent(tblActividades, ActionEvent.ACTION_PERFORMED, "verDetalle"));
+                }
+            }
+        });
         tblActividades.getTableHeader().setFont(new Font("Segoe UI", Font.BOLD, 12));
         tblActividades.getTableHeader().setPreferredSize(new Dimension(0, 36));
         tblActividades.getColumnModel().getColumn(COLUMNA_ID).setPreferredWidth(40);
@@ -195,6 +213,14 @@ public class ActividadListView extends JPanel {
 
     public void setEditarListener(ActionListener l) {
         btnEditar.addActionListener(l);
+    }
+
+    /**
+     * Se dispara con el botón "Ver detalle" y con doble clic en una fila.
+     */
+    public void setVerDetalleListener(ActionListener l) {
+        btnVerDetalle.addActionListener(l);
+        verDetalleListener = l;
     }
 
     public void setEliminarListener(ActionListener l) {

@@ -4,13 +4,16 @@ import com.saltillo.limpieza.models.dto.ActividadDetalleDTO;
 import com.saltillo.limpieza.models.dto.ActividadEventDTO;
 import com.saltillo.limpieza.models.dto.TipoEventoActividad;
 import com.saltillo.limpieza.models.entities.Colonia;
+import com.saltillo.limpieza.models.entities.Cuadrilla;
+import com.saltillo.limpieza.models.entities.IntegranteCuadrilla;
 import com.saltillo.limpieza.patterns.observer.ActividadEventBus;
 import com.saltillo.limpieza.repositories.IActividadRepository;
-import com.saltillo.limpieza.repositories.IDashboardRepository;
+import com.saltillo.limpieza.repositories.ICuadrillaPersonalRepository;
 import com.saltillo.limpieza.repositories.IEvidenciaRepository;
 import com.saltillo.limpieza.repositories.RepositorioException;
 import com.saltillo.limpieza.services.EvidenciaInvalidaException;
 import com.saltillo.limpieza.services.EvidenciaStorageService;
+import com.saltillo.limpieza.views.actividades.ActividadDetalleView;
 import com.saltillo.limpieza.views.actividades.ActividadFormView;
 import com.saltillo.limpieza.views.actividades.ActividadListView;
 
@@ -21,9 +24,10 @@ import java.time.format.DateTimeParseException;
 import java.time.format.ResolverStyle;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 /**
- * Controlador del CRUD de Actividades (Integrante 3 - Issues #10 y #14).
+ * Controlador del CRUD de Actividades (Integrante 3 - Issues #10, #13 y #14).
  *
  * Arquitectura MVC Estricta: las vistas solo hablan con este controlador, que
  * valida los datos del formulario y coordina repositorios y evidencias.
@@ -40,35 +44,41 @@ public class ActividadController {
 
     private final ActividadListView listView;
     private final ActividadFormView formView;
+    private final ActividadDetalleView detalleView;
     private final IActividadRepository actividadRepository;
     private final IEvidenciaRepository evidenciaRepository;
-    private final IDashboardRepository catalogoCuadrillas; // TODO(#3): cambiar por ICuadrillaRepository
+    private final ICuadrillaPersonalRepository cuadrillaRepository;
     private final EvidenciaStorageService evidenciaService;
     private final EvidenciaController evidenciaController;
+    private final EvidenciaController detalleEvidencias;
     private final ColoniaSelectorController coloniaSelector;
 
     private int idEnEdicion = SIN_ACTIVIDAD;
     private List<Colonia> coloniasEnEdicion = new ArrayList<>();
 
-    public ActividadController(ActividadListView listView, ActividadFormView formView,
+    public ActividadController(ActividadListView listView, ActividadFormView formView, ActividadDetalleView detalleView,
                                IActividadRepository actividadRepository, IEvidenciaRepository evidenciaRepository,
-                               IDashboardRepository catalogoCuadrillas, EvidenciaStorageService evidenciaService,
+                               ICuadrillaPersonalRepository cuadrillaRepository, EvidenciaStorageService evidenciaService,
                                ColoniaSelectorController coloniaSelector) {
         this.listView = listView;
         this.formView = formView;
+        this.detalleView = detalleView;
         this.actividadRepository = actividadRepository;
         this.evidenciaRepository = evidenciaRepository;
-        this.catalogoCuadrillas = catalogoCuadrillas;
+        this.cuadrillaRepository = cuadrillaRepository;
         this.evidenciaService = evidenciaService;
         this.evidenciaController = new EvidenciaController(formView.getEvidenciaPanel(), evidenciaService);
+        this.detalleEvidencias = new EvidenciaController(detalleView.getEvidenciaPanel(), evidenciaService);
         this.coloniaSelector = coloniaSelector;
 
-        this.formView.poblarCuadrillas(catalogoCuadrillas.obtenerNombresCuadrillas());
+        this.formView.poblarCuadrillas(nombresCuadrillasActivas());
         this.formView.poblarTipos(actividadRepository.listarTiposActividad());
 
         this.listView.setNuevoListener(this::onNuevoSolicitado);
         this.listView.setEditarListener(this::onEditarSolicitado);
         this.listView.setEliminarListener(this::onEliminarSolicitado);
+        this.listView.setVerDetalleListener(this::onVerDetalleSolicitado);
+        this.detalleView.setCerrarListener(this::onCerrarDetalleSolicitado);
         this.listView.setFiltroEstadoListener(this::onFiltroCambiado);
         this.formView.setGuardarListener(this::onGuardarSolicitado);
         this.formView.setCancelarListener(this::onCancelarSolicitado);
@@ -129,11 +139,18 @@ public class ActividadController {
             return;
         }
 
-        ActividadDetalleDTO actividad = new ActividadDetalleDTO(idEnEdicion, catalogoCuadrillas.obtenerIdPorNombre(cuadrilla),
-                cuadrilla, coloniasEnEdicion.stream().map(Colonia::getNombre).toList(), tipo, lugar, estado, programada, formView.getDescripcion().trim(), realizada);
-
         boolean esNueva = idEnEdicion == SIN_ACTIVIDAD;
+        ActividadDetalleDTO actividad;
         try {
+            Optional<Cuadrilla> cuadrillaElegida = buscarCuadrillaPorNombre(cuadrilla);
+            if (cuadrillaElegida.isEmpty()) {
+                formView.mostrarError("La cuadrilla seleccionada ya no existe.");
+                return;
+            }
+            actividad = new ActividadDetalleDTO(idEnEdicion, cuadrillaElegida.get().getIdCuadrilla(), cuadrilla,
+                    coloniasEnEdicion.stream().map(Colonia::getNombre).toList(), tipo, lugar, estado, programada,
+                    formView.getDescripcion().trim(), realizada);
+
             int idActividad = esNueva ? actividadRepository.guardar(actividad) : idEnEdicion;
             if (!esNueva) {
                 actividadRepository.actualizar(actividad);
@@ -192,6 +209,27 @@ public class ActividadController {
         publicarEvento(eliminada, TipoEventoActividad.ELIMINADA);
     }
 
+    /**
+     * Muestra toda la información de la actividad, su personal y sus evidencias (Issue #13).
+     */
+    public void verDetalle(int idActividad) {
+        ActividadDetalleDTO actividad = actividadRepository.buscarPorId(idActividad);
+        if (actividad == null) {
+            listView.mostrarError("La actividad seleccionada ya no existe.");
+            refrescarLista();
+            return;
+        }
+
+        detalleView.mostrarActividad(actividad);
+        mostrarPersonal(actividad);
+        detalleEvidencias.cargar(evidenciaRepository.listarPorActividad(idActividad));
+        detalleView.abrir(listView, "Detalle de actividad #" + idActividad);
+    }
+
+    public void cerrarDetalle() {
+        detalleView.cerrar();
+    }
+
     public void refrescarLista() {
         listView.mostrarActividades(actividadRepository.listar(listView.getFiltroEstado()));
     }
@@ -218,6 +256,19 @@ public class ActividadController {
         eliminarActividad(id);
     }
 
+    private void onVerDetalleSolicitado(ActionEvent e) {
+        Integer id = listView.getIdSeleccionado();
+        if (id == null) {
+            listView.mostrarError("Selecciona una actividad para ver su detalle.");
+            return;
+        }
+        verDetalle(id);
+    }
+
+    private void onCerrarDetalleSolicitado(ActionEvent e) {
+        cerrarDetalle();
+    }
+
     private void onFiltroCambiado(ActionEvent e) {
         refrescarLista();
     }
@@ -236,6 +287,44 @@ public class ActividadController {
 
     private void onQuitarColoniasSolicitado(ActionEvent e) {
         quitarColonias(formView.getColoniasMarcadas());
+    }
+
+    /**
+     * Jefe e integrantes de la cuadrilla de la actividad. También se compara el nombre: las actividades de
+     * ejemplo (Mock) traen cuadrillas que pueden no existir en la BD, y no se debe mostrar el personal de otra.
+     * TODO(#18): con SqlActividadRepository el ID de cuadrilla siempre será el de la BD.
+     */
+    private void mostrarPersonal(ActividadDetalleDTO actividad) {
+        try {
+            boolean existe = cuadrillaRepository.buscarPorId(actividad.getIdCuadrilla())
+                    .filter(c -> c.getNombre().equalsIgnoreCase(actividad.getNombreCuadrilla()))
+                    .isPresent();
+            if (!existe) {
+                detalleView.mostrarPersonalNoDisponible("Sin información del personal de esta cuadrilla.");
+                return;
+            }
+
+            List<IntegranteCuadrilla> integrantes = cuadrillaRepository.listarIntegrantes(actividad.getIdCuadrilla());
+            String jefe = integrantes.stream().filter(IntegranteCuadrilla::isJefe)
+                    .map(i -> i.getEmpleado().getNombreCompleto()).findFirst().orElse(null);
+            List<String> resto = integrantes.stream().filter(i -> !i.isJefe())
+                    .map(i -> i.getEmpleado().getNombreCompleto()).toList();
+            detalleView.mostrarPersonal(jefe, resto);
+        } catch (RepositorioException ex) {
+            detalleView.mostrarPersonalNoDisponible("No se pudo consultar el personal de la cuadrilla.");
+        }
+    }
+
+    private List<String> nombresCuadrillasActivas() {
+        try {
+            return cuadrillaRepository.listar().stream().filter(Cuadrilla::isActivo).map(Cuadrilla::getNombre).toList();
+        } catch (RepositorioException ex) {
+            return List.of();
+        }
+    }
+
+    private Optional<Cuadrilla> buscarCuadrillaPorNombre(String nombre) {
+        return cuadrillaRepository.listar().stream().filter(c -> c.getNombre().equals(nombre)).findFirst();
     }
 
     private void publicarEvento(ActividadDetalleDTO actividad, TipoEventoActividad tipoEvento) {
