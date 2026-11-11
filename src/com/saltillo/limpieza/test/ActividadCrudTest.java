@@ -12,11 +12,13 @@ import com.saltillo.limpieza.repositories.IActividadRepository;
 import com.saltillo.limpieza.repositories.IEvidenciaRepository;
 import com.saltillo.limpieza.repositories.MockActividadRepository;
 import com.saltillo.limpieza.repositories.MockColoniaRepository;
-import com.saltillo.limpieza.repositories.MockDashboardRepository;
+import com.saltillo.limpieza.repositories.MockCuadrillaRepository;
 import com.saltillo.limpieza.repositories.MockEvidenciaRepository;
 import com.saltillo.limpieza.repositories.RepositorioException;
 import com.saltillo.limpieza.services.EvidenciaStorageService;
+import com.saltillo.limpieza.views.actividades.ActividadDetalleView;
 import com.saltillo.limpieza.views.actividades.ActividadFormView;
+import com.saltillo.limpieza.views.actividades.EvidenciaPanel;
 import com.saltillo.limpieza.views.actividades.ActividadListView;
 import com.saltillo.limpieza.views.actividades.ColoniaSelectorDialog;
 
@@ -80,6 +82,62 @@ public class ActividadCrudTest {
                 throw new AssertionError("Error inesperado en la lista: " + mensaje);
             }
             ultimoError = mensaje;
+        }
+    }
+
+    /** Detalle sin ventana modal: guarda lo que el controlador le pide mostrar. */
+    private static class DetalleDePrueba extends ActividadDetalleView {
+        private static final long serialVersionUID = 1L;
+        private final PanelEvidenciasDePrueba panel = new PanelEvidenciasDePrueba();
+        private boolean abierto;
+        private ActividadDetalleDTO actividad;
+        private String jefe;
+        private List<String> integrantes;
+        private String personalNoDisponible;
+
+        @Override
+        public void abrir(Component padre, String titulo) {
+            abierto = true;
+        }
+
+        @Override
+        public void cerrar() {
+            abierto = false;
+        }
+
+        @Override
+        public void mostrarActividad(ActividadDetalleDTO actividad) {
+            this.actividad = actividad;
+            super.mostrarActividad(actividad);
+        }
+
+        @Override
+        public void mostrarPersonal(String jefe, List<String> integrantes) {
+            this.jefe = jefe;
+            this.integrantes = integrantes;
+            personalNoDisponible = null;
+        }
+
+        @Override
+        public void mostrarPersonalNoDisponible(String mensaje) {
+            personalNoDisponible = mensaje;
+            jefe = null;
+            integrantes = null;
+        }
+
+        @Override
+        public EvidenciaPanel getEvidenciaPanel() {
+            return panel;
+        }
+    }
+
+    private static class PanelEvidenciasDePrueba extends EvidenciaPanel {
+        private static final long serialVersionUID = 1L;
+        private List<String> mostradas = List.of();
+
+        @Override
+        public void mostrarEvidencias(java.util.Map<String, BufferedImage> imagenes) {
+            mostradas = new ArrayList<>(imagenes.keySet());
         }
     }
 
@@ -150,6 +208,7 @@ public class ActividadCrudTest {
             testEvidenciasDeLaActividad(raiz);
             testEventosPublicados(raiz);
             testOperacionFallidaNoPublica(raiz);
+            testDetalleDeActividad(raiz);
         } finally {
             borrarCarpeta(raiz);
         }
@@ -257,8 +316,8 @@ public class ActividadCrudTest {
         IActividadRepository repo = new MockActividadRepository();
         IEvidenciaRepository evidencias = new MockEvidenciaRepository();
         FormDePrueba form = new FormDePrueba();
-        ActividadController controller = new ActividadController(new ListaDePrueba(), form, repo, evidencias,
-                new MockDashboardRepository(), servicio, conectar(new SelectorDePrueba()));
+        ActividadController controller = new ActividadController(new ListaDePrueba(), form, new DetalleDePrueba(), repo,
+                evidencias, new MockCuadrillaRepository(), servicio, conectar(new SelectorDePrueba()));
         String nombre = guardarImagen(servicio, raiz);
 
         int id = repo.listar(null).get(0).getIdActividad();
@@ -366,9 +425,47 @@ public class ActividadCrudTest {
         System.out.println("PASO (validacion, cancelar, sin confirmar y BD caida no publican)");
     }
 
+    private static void testDetalleDeActividad(Path raiz) throws Exception {
+        System.out.print("[TEST 7] Verificando detalle de actividad con personal y evidencias (Issue #13)... ");
+        EvidenciaStorageService servicio = new EvidenciaStorageService(raiz.resolve("evidencias-detalle"));
+        IActividadRepository repo = new MockActividadRepository();
+        IEvidenciaRepository evidencias = new MockEvidenciaRepository();
+        ListaDePrueba lista = new ListaDePrueba();
+        DetalleDePrueba detalle = new DetalleDePrueba();
+        ActividadController controller = new ActividadController(lista, new FormDePrueba(), detalle, repo, evidencias,
+                new MockCuadrillaRepository(), servicio, conectar(new SelectorDePrueba()));
+
+        // Actividad de ejemplo #1: Cuadrilla Centro Histórico, con jefa y dos integrantes en el Mock
+        String imagen = guardarImagen(servicio, raiz);
+        evidencias.reemplazar(1, List.of(imagen));
+        controller.verDetalle(1);
+        assert detalle.abierto : "El detalle debe abrirse";
+        assert detalle.actividad.getIdActividad() == 1 : "Debe mostrar la actividad pedida";
+        assert "Elena Fuentes Ríos".equals(detalle.jefe) : "Debe mostrar a la jefa de la cuadrilla: " + detalle.jefe;
+        assert detalle.integrantes.equals(List.of("Jorge Martínez López", "Lucía Hernández"))
+                : "Debe mostrar al resto del personal: " + detalle.integrantes;
+        assert detalle.panel.mostradas.equals(List.of(imagen)) : "Debe mostrar las evidencias de la actividad";
+
+        controller.cerrarDetalle();
+        assert !detalle.abierto : "Cerrar debe cerrar el detalle";
+
+        // Una cuadrilla que no existe en el catálogo no debe mostrar personal ajeno
+        int idAjena = repo.guardar(new ActividadDetalleDTO(0, 2, "Cuadrilla que no coincide", List.of("Doctores"),
+                "Barrido", "Calle 1", "PROGRAMADA", null, "", null));
+        controller.verDetalle(idAjena);
+        assert "Sin información del personal de esta cuadrilla.".equals(detalle.personalNoDisponible)
+                : "No debe inventarse el personal";
+        assert detalle.panel.mostradas.isEmpty() : "Sin evidencias el panel queda vacío";
+
+        lista.esperaError = true;
+        controller.verDetalle(999);
+        assert "La actividad seleccionada ya no existe.".equals(lista.ultimoError) : "Debe avisar si no existe";
+        System.out.println("PASO (datos, jefe, integrantes, evidencias y cuadrilla desconocida)");
+    }
+
     private static ActividadController crearController(ActividadListView lista, ActividadFormView form, IActividadRepository repo,
                                                        IEvidenciaRepository evidencias, Path raiz, SelectorDePrueba selector) {
-        return new ActividadController(lista, form, repo, evidencias, new MockDashboardRepository(),
+        return new ActividadController(lista, form, new DetalleDePrueba(), repo, evidencias, new MockCuadrillaRepository(),
                 new EvidenciaStorageService(raiz.resolve("evidencias")), conectar(selector));
     }
 

@@ -16,6 +16,7 @@ import com.saltillo.limpieza.repositories.MockActividadRepository;
 import com.saltillo.limpieza.repositories.MockDashboardRepository;
 import com.saltillo.limpieza.repositories.MockEvidenciaRepository;
 import com.saltillo.limpieza.repositories.SqlColoniaRepository;
+import com.saltillo.limpieza.repositories.SqlCuadrillaRepository;
 import com.saltillo.limpieza.repositories.SqlEmpleadoRepository;
 import com.saltillo.limpieza.repositories.SqlTipoActividadRepository;
 import com.saltillo.limpieza.repositories.SqlUsuarioRepository;
@@ -26,6 +27,7 @@ import com.saltillo.limpieza.views.DashboardView;
 import com.saltillo.limpieza.views.LoginView;
 import com.saltillo.limpieza.views.MainShellView;
 import com.saltillo.limpieza.views.PlaceholderModuleView;
+import com.saltillo.limpieza.views.actividades.ActividadDetalleView;
 import com.saltillo.limpieza.views.actividades.ActividadFormView;
 import com.saltillo.limpieza.views.actividades.ActividadListView;
 import com.saltillo.limpieza.views.actividades.ColoniaSelectorDialog;
@@ -146,9 +148,10 @@ public class Main {
         ActividadController actividadController = new ActividadController(
                 actividadesView,
                 new ActividadFormView(),
+                new ActividadDetalleView(),
                 new MockActividadRepository(),
                 new MockEvidenciaRepository(),
-                dashboardRepo,
+                new SqlCuadrillaRepository(),
                 new EvidenciaStorageService(),
                 new ColoniaSelectorController(new ColoniaSelectorDialog(), new SqlColoniaRepository()));
 
