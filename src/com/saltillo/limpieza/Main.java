@@ -12,7 +12,7 @@ import com.saltillo.limpieza.controllers.catalogos.UsuarioController;
 import com.saltillo.limpieza.database.ConexionBD;
 import com.saltillo.limpieza.repositories.IDashboardRepository;
 import com.saltillo.limpieza.repositories.MockActividadRepository;
-import com.saltillo.limpieza.repositories.MockDashboardRepository;
+import com.saltillo.limpieza.repositories.SqlDashboardRepository;
 import com.saltillo.limpieza.repositories.MockEvidenciaRepository;
 import com.saltillo.limpieza.repositories.SqlColoniaRepository;
 import com.saltillo.limpieza.repositories.SqlEmpleadoRepository;
@@ -99,8 +99,8 @@ public class Main {
             return;
         }
 
-        // 1. REPOSITORIO (TODO(#17): sustituir MockDashboardRepository por SqlDashboardRepository)
-        IDashboardRepository dashboardRepo = new MockDashboardRepository();
+        // 1. REPOSITORIO #17:
+        IDashboardRepository dashboardRepo = new SqlDashboardRepository();
 
         // 2. VISTAS DEL SISTEMA
         MainShellView shellView = new MainShellView();
