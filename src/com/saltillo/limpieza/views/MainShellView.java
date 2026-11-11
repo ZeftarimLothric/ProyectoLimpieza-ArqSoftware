@@ -7,6 +7,7 @@ import java.awt.*;
 import java.awt.event.ActionListener;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
+import java.awt.event.WindowListener;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -45,14 +46,14 @@ public class MainShellView extends JFrame {
     private JButton btnNavConsulta;
     private JButton btnNavActividades;
     private JButton btnNavCuadrillas;
-    private JButton btnNavColonias;
+    private JButton btnNavCatalogos;
     private JButton btnCerrarSesion;
 
     private JLabel lblUsuarioSesion;
 
     public MainShellView() {
         super("Municipio de Saltillo • Sistema de Gestión de Actividades de Limpieza Urbana");
-        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        setDefaultCloseOperation(WindowConstants.DO_NOTHING_ON_CLOSE);
         setSize(1280, 800);
         setMinimumSize(new Dimension(1100, 720));
         setLocationRelativeTo(null);
@@ -213,9 +214,9 @@ public class MainShellView extends JFrame {
                 UiIcons.getCuadrillasIcon(COLOR_TEXT_MUTED, 16),
                 UiIcons.getCuadrillasIcon(Color.WHITE, 16));
 
-        btnNavColonias = crearBotonNavegacion("Colonias (Sepomex)", "COLONIAS",
-                UiIcons.getColoniasIcon(COLOR_TEXT_MUTED, 16),
-                UiIcons.getColoniasIcon(Color.WHITE, 16));
+        btnNavCatalogos = crearBotonNavegacion("Catálogos", "CATALOGOS",
+                UiIcons.getCatalogosIcon(COLOR_TEXT_MUTED, 16),
+                UiIcons.getCatalogosIcon(Color.WHITE, 16));
 
         pnlMenu.add(btnNavDashboard);
         pnlMenu.add(Box.createVerticalStrut(6));
@@ -225,7 +226,7 @@ public class MainShellView extends JFrame {
         pnlMenu.add(Box.createVerticalStrut(6));
         pnlMenu.add(btnNavCuadrillas);
         pnlMenu.add(Box.createVerticalStrut(6));
-        pnlMenu.add(btnNavColonias);
+        pnlMenu.add(btnNavCatalogos);
 
         sidebar.add(pnlMenu, BorderLayout.CENTER);
 
@@ -349,11 +350,15 @@ public class MainShellView extends JFrame {
         btnNavCuadrillas.addActionListener(al);
     }
 
-    public void setNavColoniasListener(ActionListener al) {
-        btnNavColonias.addActionListener(al);
+    public void setNavCatalogosListener(ActionListener al) {
+        btnNavCatalogos.addActionListener(al);
     }
 
     public void setCerrarSesionListener(ActionListener al) {
         btnCerrarSesion.addActionListener(al);
+    }
+
+    public void setCerrarVentanaListener(WindowListener wl) {
+        addWindowListener(wl);
     }
 }

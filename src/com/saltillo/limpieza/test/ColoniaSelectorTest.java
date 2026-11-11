@@ -1,7 +1,7 @@
 package com.saltillo.limpieza.test;
 
 import com.saltillo.limpieza.controllers.ColoniaSelectorController;
-import com.saltillo.limpieza.models.dto.ColoniaDTO;
+import com.saltillo.limpieza.models.entities.Colonia;
 import com.saltillo.limpieza.repositories.MockColoniaRepository;
 import com.saltillo.limpieza.views.actividades.ColoniaSelectorDialog;
 
@@ -23,8 +23,8 @@ public class ColoniaSelectorTest {
         private static final long serialVersionUID = 1L;
         private Consumer<ColoniaSelectorController> guion = c -> { };
         private ColoniaSelectorController controller;
-        private List<ColoniaDTO> ultimosResultados = new ArrayList<>();
-        private List<ColoniaDTO> ultimasSeleccionadas = new ArrayList<>();
+        private List<Colonia> ultimosResultados = new ArrayList<>();
+        private List<Colonia> ultimasSeleccionadas = new ArrayList<>();
         private String ultimoError;
         private boolean abierto;
 
@@ -40,12 +40,12 @@ public class ColoniaSelectorTest {
         }
 
         @Override
-        public void mostrarResultados(List<ColoniaDTO> colonias) {
+        public void mostrarResultados(List<Colonia> colonias) {
             ultimosResultados = colonias;
         }
 
         @Override
-        public void mostrarSeleccionadas(List<ColoniaDTO> colonias) {
+        public void mostrarSeleccionadas(List<Colonia> colonias) {
             ultimasSeleccionadas = new ArrayList<>(colonias);
         }
 
@@ -65,6 +65,7 @@ public class ColoniaSelectorTest {
         testColoniaObligatoria();
         testCancelar();
         testResolverNombres();
+        testMockImplementaContrato();
 
         System.out.println("\n>>> TODAS LAS PRUEBAS DEL SELECTOR DE COLONIAS PASARON CON EXITO <<<");
     }
@@ -94,29 +95,29 @@ public class ColoniaSelectorTest {
         System.out.print("[TEST 2] Verificando seleccion multiple sin duplicados... ");
         DialogDePrueba dialog = new DialogDePrueba();
         ColoniaSelectorController controller = crear(dialog);
-        ColoniaDTO centro = CATALOGO.buscarPorNombreOCodigoPostal("Centro").get(0);
-        List<ColoniaDTO> republicas = CATALOGO.buscarPorNombreOCodigoPostal("República");
+        Colonia centro = CATALOGO.buscarPorNombreOCodigoPostal("Centro").get(0);
+        List<Colonia> republicas = CATALOGO.buscarPorNombreOCodigoPostal("República");
 
         dialog.guion = c -> {
             c.agregar(republicas);
-            c.agregar(List.of(republicas.get(0)));
+            c.agregar(List.of(copiar(republicas.get(0))));
             c.quitar(List.of(centro));
             c.aceptar();
         };
-        Optional<List<ColoniaDTO>> resultado = controller.seleccionar(null, List.of(centro));
+        Optional<List<Colonia>> resultado = controller.seleccionar(null, List.of(centro));
 
         assert resultado.isPresent() : "Aceptar debe devolver las colonias";
         assert nombres(resultado.get()).equals(List.of("República Oriente", "República Poniente"))
                 : "Debe sumar varias, sin duplicar y permitir quitar: " + resultado.get();
         assert !dialog.abierto : "Aceptar debe cerrar el diálogo";
-        System.out.println("PASO (agregar varias, duplicado ignorado y quitar)");
+        System.out.println("PASO (agregar varias, duplicado por ID ignorado y quitar)");
     }
 
     private static void testColoniaObligatoria() {
         System.out.print("[TEST 3] Verificando que se exija al menos una colonia... ");
         DialogDePrueba dialog = new DialogDePrueba();
         ColoniaSelectorController controller = crear(dialog);
-        List<ColoniaDTO> centro = CATALOGO.buscarPorNombreOCodigoPostal("Centro");
+        List<Colonia> centro = CATALOGO.buscarPorNombreOCodigoPostal("Centro");
 
         dialog.guion = c -> {
             c.aceptar();
@@ -125,7 +126,7 @@ public class ColoniaSelectorTest {
             c.agregar(centro);
             c.aceptar();
         };
-        Optional<List<ColoniaDTO>> resultado = controller.seleccionar(null, List.of());
+        Optional<List<Colonia>> resultado = controller.seleccionar(null, List.of());
 
         assert resultado.isPresent() && resultado.get().equals(centro) : "Tras agregar una colonia debe aceptarse";
         System.out.println("PASO (rechazo sin colonias y aceptacion con una)");
@@ -135,13 +136,13 @@ public class ColoniaSelectorTest {
         System.out.print("[TEST 4] Verificando cancelar y reapertura... ");
         DialogDePrueba dialog = new DialogDePrueba();
         ColoniaSelectorController controller = crear(dialog);
-        List<ColoniaDTO> iniciales = CATALOGO.buscarPorNombreOCodigoPostal("Doctores");
+        List<Colonia> iniciales = CATALOGO.buscarPorNombreOCodigoPostal("Doctores");
 
         dialog.guion = c -> {
             c.agregar(CATALOGO.buscarPorNombreOCodigoPostal("Zaragoza"));
             c.cancelar();
         };
-        Optional<List<ColoniaDTO>> resultado = controller.seleccionar(null, iniciales);
+        Optional<List<Colonia>> resultado = controller.seleccionar(null, iniciales);
         assert resultado.isEmpty() : "Cancelar no debe devolver colonias";
 
         dialog.guion = ColoniaSelectorController::aceptar;
@@ -154,7 +155,7 @@ public class ColoniaSelectorTest {
         System.out.print("[TEST 5] Verificando recuperacion de colonias guardadas por nombre... ");
         ColoniaSelectorController controller = crear(new DialogDePrueba());
 
-        List<ColoniaDTO> colonias = controller.resolverNombres(List.of("Mirasierra", "Colonia Inexistente"));
+        List<Colonia> colonias = controller.resolverNombres(List.of("Mirasierra", "Colonia Inexistente"));
         assert colonias.size() == 2 : "No debe perderse ningún nombre";
         assert "25016".equals(colonias.get(0).getCodigoPostal()) : "Un nombre del catálogo recupera su código postal";
         assert "Colonia Inexistente".equals(colonias.get(1).getNombre()) : "Un nombre desconocido se conserva";
@@ -162,13 +163,31 @@ public class ColoniaSelectorTest {
         System.out.println("PASO (catalogo y nombres desconocidos)");
     }
 
+    private static void testMockImplementaContrato() {
+        System.out.print("[TEST 6] Verificando MockColoniaRepository contra IColoniaRepository... ");
+        MockColoniaRepository repo = new MockColoniaRepository();
+        int total = repo.listar().size();
+
+        Colonia nueva = new Colonia(0, "Lomas de Lourdes", "25090", "Saltillo", "Coahuila de Zaragoza");
+        assert repo.guardar(nueva) && nueva.getIdColonia() > 0 : "Guardar debe asignar un ID";
+        assert repo.buscarPorId(nueva.getIdColonia()).isPresent() : "Debe encontrarse por ID";
+        assert repo.listar().size() == total + 1 : "Debe agregarse a la lista";
+        assert repo.eliminar(nueva.getIdColonia()) && repo.buscarPorId(nueva.getIdColonia()).isEmpty()
+                : "Debe poder eliminarse";
+        System.out.println("PASO (guardar, buscar por ID y eliminar)");
+    }
+
+    private static Colonia copiar(Colonia c) {
+        return new Colonia(c.getIdColonia(), c.getNombre(), c.getCodigoPostal(), c.getMunicipio(), c.getEstado());
+    }
+
     private static ColoniaSelectorController crear(DialogDePrueba dialog) {
-        ColoniaSelectorController controller = new ColoniaSelectorController(dialog, CATALOGO::buscarPorNombreOCodigoPostal);
+        ColoniaSelectorController controller = new ColoniaSelectorController(dialog, CATALOGO);
         dialog.controller = controller;
         return controller;
     }
 
-    private static List<String> nombres(List<ColoniaDTO> colonias) {
-        return colonias.stream().map(ColoniaDTO::getNombre).toList();
+    private static List<String> nombres(List<Colonia> colonias) {
+        return colonias.stream().map(Colonia::getNombre).toList();
     }
 }

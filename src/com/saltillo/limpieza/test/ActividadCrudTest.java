@@ -3,7 +3,7 @@ package com.saltillo.limpieza.test;
 import com.saltillo.limpieza.controllers.ActividadController;
 import com.saltillo.limpieza.controllers.ColoniaSelectorController;
 import com.saltillo.limpieza.models.dto.ActividadDetalleDTO;
-import com.saltillo.limpieza.models.dto.ColoniaDTO;
+import com.saltillo.limpieza.models.entities.Colonia;
 import com.saltillo.limpieza.repositories.IActividadRepository;
 import com.saltillo.limpieza.repositories.IEvidenciaRepository;
 import com.saltillo.limpieza.repositories.MockActividadRepository;
@@ -39,7 +39,7 @@ public class ActividadCrudTest {
     private static class SelectorDePrueba extends ColoniaSelectorDialog {
         private static final long serialVersionUID = 1L;
         private ColoniaSelectorController controller;
-        private List<ColoniaDTO> aElegir = List.of();
+        private List<Colonia> aElegir = List.of();
 
         @Override
         public void abrir(Component padre) {
@@ -236,7 +236,7 @@ public class ActividadCrudTest {
     }
 
     private static ColoniaSelectorController conectar(SelectorDePrueba selector) {
-        ColoniaSelectorController controller = new ColoniaSelectorController(selector, CATALOGO::buscarPorNombreOCodigoPostal);
+        ColoniaSelectorController controller = new ColoniaSelectorController(selector, CATALOGO);
         selector.controller = controller;
         return controller;
     }

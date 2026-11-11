@@ -1,6 +1,8 @@
 package com.saltillo.limpieza.controllers;
 
-import com.saltillo.limpieza.models.dto.ColoniaDTO;
+import com.saltillo.limpieza.models.entities.Colonia;
+import com.saltillo.limpieza.repositories.IColoniaRepository;
+import com.saltillo.limpieza.repositories.RepositorioException;
 import com.saltillo.limpieza.views.actividades.ColoniaSelectorDialog;
 
 import java.awt.Component;
@@ -8,24 +10,22 @@ import java.awt.event.ActionEvent;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
-import java.util.function.Function;
 
 /**
  * Controlador del selector de colonias atendidas (Integrante 3 - Issue #11).
  *
- * Recibe la búsqueda como función para no depender todavía de un repositorio concreto.
- * TODO(#3): pasar coloniaRepository::buscarPorNombreOCodigoPostal cuando exista IColoniaRepository.
+ * Busca en IColoniaRepository: SqlColoniaRepository en la app y MockColoniaRepository en pruebas.
  */
 public class ColoniaSelectorController {
 
     private final ColoniaSelectorDialog dialog;
-    private final Function<String, List<ColoniaDTO>> buscador;
-    private List<ColoniaDTO> seleccionadas = new ArrayList<>();
-    private List<ColoniaDTO> confirmadas;
+    private final IColoniaRepository coloniaRepository;
+    private List<Colonia> seleccionadas = new ArrayList<>();
+    private List<Colonia> confirmadas;
 
-    public ColoniaSelectorController(ColoniaSelectorDialog dialog, Function<String, List<ColoniaDTO>> buscador) {
+    public ColoniaSelectorController(ColoniaSelectorDialog dialog, IColoniaRepository coloniaRepository) {
         this.dialog = dialog;
-        this.buscador = buscador;
+        this.coloniaRepository = coloniaRepository;
 
         this.dialog.setBuscarListener(this::onBuscarSolicitado);
         this.dialog.setAgregarListener(this::onAgregarSolicitado);
@@ -39,7 +39,7 @@ public class ColoniaSelectorController {
      *
      * @return las colonias confirmadas, o vacío si el usuario canceló
      */
-    public Optional<List<ColoniaDTO>> seleccionar(Component padre, List<ColoniaDTO> actuales) {
+    public Optional<List<Colonia>> seleccionar(Component padre, List<Colonia> actuales) {
         seleccionadas = actuales != null ? new ArrayList<>(actuales) : new ArrayList<>();
         confirmadas = null;
 
@@ -52,36 +52,38 @@ public class ColoniaSelectorController {
 
     /**
      * Recupera las colonias de una actividad guardada, que hoy solo trae sus nombres.
-     * Si un nombre ya no está en el catálogo se conserva sin código postal para no perderlo.
+     * Si un nombre no está en el catálogo se conserva solo con el nombre para no perderlo.
      *
      * TODO(#18): sobra cuando las actividades guarden el ID de cada colonia.
      */
-    public List<ColoniaDTO> resolverNombres(List<String> nombres) {
-        List<ColoniaDTO> colonias = new ArrayList<>();
+    public List<Colonia> resolverNombres(List<String> nombres) {
+        List<Colonia> colonias = new ArrayList<>();
         for (String nombre : nombres) {
-            colonias.add(buscador.apply(nombre).stream()
-                    .filter(c -> c.getNombre().equalsIgnoreCase(nombre))
-                    .findFirst()
-                    .orElse(new ColoniaDTO(-(colonias.size() + 1), nombre, "?")));
+            colonias.add(buscarPorNombreExacto(nombre).orElseGet(() -> soloConNombre(nombre)));
         }
         return colonias;
     }
 
     public void buscar(String texto) {
-        dialog.mostrarResultados(buscador.apply(texto.trim()));
+        try {
+            dialog.mostrarResultados(coloniaRepository.buscarPorNombreOCodigoPostal(texto.trim()));
+        } catch (RepositorioException ex) {
+            dialog.mostrarResultados(List.of());
+            dialog.mostrarError("No se pudieron consultar las colonias. Revisa la conexión con la base de datos.");
+        }
     }
 
-    public void agregar(List<ColoniaDTO> colonias) {
-        for (ColoniaDTO colonia : colonias) {
-            if (!seleccionadas.contains(colonia)) {
+    public void agregar(List<Colonia> colonias) {
+        for (Colonia colonia : colonias) {
+            if (!contiene(seleccionadas, colonia)) {
                 seleccionadas.add(colonia);
             }
         }
         dialog.mostrarSeleccionadas(seleccionadas);
     }
 
-    public void quitar(List<ColoniaDTO> colonias) {
-        seleccionadas.removeAll(colonias);
+    public void quitar(List<Colonia> colonias) {
+        seleccionadas.removeIf(c -> contiene(colonias, c));
         dialog.mostrarSeleccionadas(seleccionadas);
     }
 
@@ -97,6 +99,37 @@ public class ColoniaSelectorController {
     public void cancelar() {
         confirmadas = null;
         dialog.cerrar();
+    }
+
+    /**
+     * Colonia no define equals: cada búsqueda en la BD crea objetos nuevos, así que se comparan por ID,
+     * o por nombre cuando alguna no tiene ID (las que solo se recuperaron por nombre).
+     */
+    public static boolean mismaColonia(Colonia a, Colonia b) {
+        if (a.getIdColonia() > 0 && b.getIdColonia() > 0) {
+            return a.getIdColonia() == b.getIdColonia();
+        }
+        return a.getNombre().equalsIgnoreCase(b.getNombre());
+    }
+
+    private static boolean contiene(List<Colonia> lista, Colonia colonia) {
+        return lista.stream().anyMatch(c -> mismaColonia(c, colonia));
+    }
+
+    private Optional<Colonia> buscarPorNombreExacto(String nombre) {
+        try {
+            return coloniaRepository.buscarPorNombreOCodigoPostal(nombre).stream()
+                    .filter(c -> c.getNombre().equalsIgnoreCase(nombre))
+                    .findFirst();
+        } catch (RepositorioException ex) {
+            return Optional.empty();
+        }
+    }
+
+    private Colonia soloConNombre(String nombre) {
+        Colonia colonia = new Colonia();
+        colonia.setNombre(nombre);
+        return colonia;
     }
 
     private void onBuscarSolicitado(ActionEvent e) {

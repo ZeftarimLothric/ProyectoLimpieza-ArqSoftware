@@ -1,7 +1,7 @@
 package com.saltillo.limpieza.controllers;
 
 import com.saltillo.limpieza.models.dto.ActividadDetalleDTO;
-import com.saltillo.limpieza.models.dto.ColoniaDTO;
+import com.saltillo.limpieza.models.entities.Colonia;
 import com.saltillo.limpieza.repositories.IActividadRepository;
 import com.saltillo.limpieza.repositories.IDashboardRepository;
 import com.saltillo.limpieza.repositories.IEvidenciaRepository;
@@ -43,7 +43,7 @@ public class ActividadController {
     private final ColoniaSelectorController coloniaSelector;
 
     private int idEnEdicion = SIN_ACTIVIDAD;
-    private List<ColoniaDTO> coloniasEnEdicion = new ArrayList<>();
+    private List<Colonia> coloniasEnEdicion = new ArrayList<>();
 
     public ActividadController(ActividadListView listView, ActividadFormView formView,
                                IActividadRepository actividadRepository, IEvidenciaRepository evidenciaRepository,
@@ -125,7 +125,7 @@ public class ActividadController {
         }
 
         ActividadDetalleDTO actividad = new ActividadDetalleDTO(idEnEdicion, catalogoCuadrillas.obtenerIdPorNombre(cuadrilla),
-                cuadrilla, coloniasEnEdicion.stream().map(ColoniaDTO::getNombre).toList(), tipo, lugar, estado, programada, formView.getDescripcion().trim(), realizada);
+                cuadrilla, coloniasEnEdicion.stream().map(Colonia::getNombre).toList(), tipo, lugar, estado, programada, formView.getDescripcion().trim(), realizada);
 
         int idActividad = idEnEdicion;
         if (idEnEdicion == SIN_ACTIVIDAD) {
@@ -147,8 +147,8 @@ public class ActividadController {
         });
     }
 
-    public void quitarColonias(List<ColoniaDTO> colonias) {
-        coloniasEnEdicion.removeAll(colonias);
+    public void quitarColonias(List<Colonia> colonias) {
+        coloniasEnEdicion.removeIf(c -> colonias.stream().anyMatch(m -> ColoniaSelectorController.mismaColonia(c, m)));
         formView.mostrarColonias(coloniasEnEdicion);
     }
 

@@ -26,7 +26,7 @@ public class ActividadesDemo {
     private static void abrir() {
         ActividadListView lista = new ActividadListView();
         ColoniaSelectorController coloniaSelector = new ColoniaSelectorController(new ColoniaSelectorDialog(),
-                new MockColoniaRepository()::buscarPorNombreOCodigoPostal);
+                new MockColoniaRepository());
         new ActividadController(lista, new ActividadFormView(), new MockActividadRepository(),
                 new MockEvidenciaRepository(), new MockDashboardRepository(), new EvidenciaStorageService(), coloniaSelector);
 

@@ -1,6 +1,6 @@
 package com.saltillo.limpieza.views.actividades;
 
-import com.saltillo.limpieza.models.dto.ColoniaDTO;
+import com.saltillo.limpieza.models.entities.Colonia;
 
 import javax.swing.*;
 import java.awt.*;
@@ -28,8 +28,8 @@ public class ActividadFormView extends JPanel {
     private final JTextField txtFechaProgramada = new JTextField();
     private final JTextField txtFechaRealizacion = new JTextField();
     private final JTextArea txtDescripcion = new JTextArea(3, 20);
-    private final DefaultListModel<ColoniaDTO> modeloColonias = new DefaultListModel<>();
-    private final JList<ColoniaDTO> lstColonias = new JList<>(modeloColonias);
+    private final DefaultListModel<Colonia> modeloColonias = new DefaultListModel<>();
+    private final JList<Colonia> lstColonias = new JList<>(modeloColonias);
     private final JButton btnElegirColonias = new JButton("Elegir colonias...");
     private final JButton btnQuitarColonias = new JButton("Quitar");
     private final EvidenciaPanel evidenciaPanel = new EvidenciaPanel();
@@ -76,6 +76,7 @@ public class ActividadFormView extends JPanel {
         lstColonias.setFont(new Font("Segoe UI", Font.PLAIN, 12));
         lstColonias.setSelectionMode(ListSelectionModel.MULTIPLE_INTERVAL_SELECTION);
         lstColonias.setVisibleRowCount(3);
+        lstColonias.setCellRenderer(new ColoniaCellRenderer());
 
         JPanel pnlBotones = new JPanel(new GridLayout(2, 1, 0, 4));
         pnlBotones.setOpaque(false);
@@ -144,12 +145,12 @@ public class ActividadFormView extends JPanel {
         modeloColonias.clear();
     }
 
-    public void mostrarColonias(List<ColoniaDTO> colonias) {
+    public void mostrarColonias(List<Colonia> colonias) {
         modeloColonias.clear();
         modeloColonias.addAll(colonias);
     }
 
-    public List<ColoniaDTO> getColoniasMarcadas() {
+    public List<Colonia> getColoniasMarcadas() {
         return lstColonias.getSelectedValuesList();
     }
 

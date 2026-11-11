@@ -6,6 +6,10 @@ import com.saltillo.limpieza.views.MainShellView;
 
 import javax.swing.*;
 import java.awt.event.ActionEvent;
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Controlador Principal de Navegación y Gestión de Sesión.
@@ -13,30 +17,63 @@ import java.awt.event.ActionEvent;
  * Cumplimiento de Contratos Issue #4, #15 y #16:
  * - Se integra con SesionUsuario (Singleton).
  * - Control de enrutamiento para Dashboard, Consulta y módulos externos.
- * - Cierre seguro de sesión destruyendo la instancia de sesión en memoria.
+ * - Cierre seguro de sesión destruyendo la instancia de sesión en memoria,
+ *   desuscribiendo observadores, ejecutando limpieza de recursos y manejando el cierre por ventana (X).
  */
 public class MainNavigationController {
 
     private final MainShellView shellView;
+    private final List<Runnable> tareasLimpieza = new ArrayList<>();
+    private Runnable alCerrarSesionCallback;
 
     public MainNavigationController(MainShellView shellView) {
+        this(shellView, false);
+    }
+
+    public MainNavigationController(MainShellView shellView, boolean requerirSesionActiva) {
         this.shellView = shellView;
 
-        // Inicializar sesión por defecto si no existe una previa
         if (!SesionUsuario.getInstance().estaActiva()) {
+            if (requerirSesionActiva) {
+                throw new IllegalStateException("Acceso denegado: no existe una sesión activa.");
+            }
+            // Respaldo únicamente para pruebas aisladas sin pasar por LoginView
             Usuario demoUser = new Usuario(1, "Lic. Administrador Municipal", "admin.saltillo@municipio.gob", "ADMINISTRADOR");
             SesionUsuario.getInstance().iniciar(demoUser);
         }
 
         actualizarVistaUsuario();
 
-        // Vincular eventos del menú lateral hacia este controlador (Strict MVC)
+        // Vincular eventos del menú lateral y ventana hacia este controlador (Strict MVC)
         this.shellView.setNavDashboardListener(e -> navegarA("DASHBOARD"));
         this.shellView.setNavConsultaListener(e -> navegarA("CONSULTA"));
         this.shellView.setNavActividadesListener(e -> navegarA("ACTIVIDADES"));
         this.shellView.setNavCuadrillasListener(e -> navegarA("CUADRILLAS"));
-        this.shellView.setNavColoniasListener(e -> navegarA("COLONIAS"));
+        this.shellView.setNavCatalogosListener(e -> navegarA("CATALOGOS"));
         this.shellView.setCerrarSesionListener(this::onCerrarSesionSolicitado);
+        this.shellView.setCerrarVentanaListener(new WindowAdapter() {
+            @Override
+            public void windowClosing(WindowEvent e) {
+                onCerrarVentanaSolicitado();
+            }
+        });
+    }
+
+    /**
+     * Registra una tarea de limpieza (desuscribir observadores, cerrar conexión BD, etc.)
+     * que se ejecutará al cerrar sesión o cerrar la ventana con la X.
+     */
+    public void registrarLimpiezaAlCerrar(Runnable tarea) {
+        if (tarea != null && !tareasLimpieza.contains(tarea)) {
+            tareasLimpieza.add(tarea);
+        }
+    }
+
+    /**
+     * Configura el callback opcional para regresar al Login al cerrar sesión (Issue #7 / #15).
+     */
+    public void setAlCerrarSesionCallback(Runnable callback) {
+        this.alCerrarSesionCallback = callback;
     }
 
     public void actualizarVistaUsuario() {
@@ -69,36 +106,74 @@ public class MainNavigationController {
      */
     private void onCerrarSesionSolicitado(ActionEvent e) {
         int confirm = JOptionPane.showConfirmDialog(shellView,
-                "¿Está seguro de que desea cerrar la sesión actual y salir del sistema?\n" +
-                "(Se destruirán las variables de sesión en memoria y se cerrarán recursos).",
+                "¿Está seguro de que desea cerrar la sesión actual?\n" +
+                "(Se destruirán las variables de sesión en memoria, se quitarán los observadores y se cerrarán recursos).",
                 "Confirmación de Cierre Seguro",
                 JOptionPane.YES_NO_OPTION,
                 JOptionPane.QUESTION_MESSAGE);
 
         if (confirm == JOptionPane.YES_OPTION) {
-            destruirSesionYSeguridad();
+            destruirSesionYSeguridad(false);
+        }
+    }
+
+    private void onCerrarVentanaSolicitado() {
+        int confirm = JOptionPane.showConfirmDialog(shellView,
+                "¿Está seguro de que desea salir del sistema?\n" +
+                "(Se destruirá la sesión activa y se cerrarán los recursos de forma segura).",
+                "Confirmación de Salida Segura",
+                JOptionPane.YES_NO_OPTION,
+                JOptionPane.QUESTION_MESSAGE);
+
+        if (confirm == JOptionPane.YES_OPTION) {
+            destruirSesionYSeguridad(true);
         }
     }
 
     /**
-     * Destruye de forma estricta la sesión global en memoria.
+     * Ejecuta la limpieza de recursos registrados (observadores, conexión BD)
+     * y destruye la sesión activa sin cerrar el proceso JVM (apto para pruebas y callbacks).
      */
-    public void destruirSesionYSeguridad() {
+    public void ejecutarLimpiezaRecursos() {
         Usuario u = SesionUsuario.getInstance().getUsuarioActual();
         String nombreUser = (u != null) ? u.getUsuario() : "Desconocido";
 
-        System.out.println("[Seguridad] Destruyendo sesión en memoria para: " + nombreUser);
+        System.out.println("[Seguridad] Destruyendo sesión y liberando recursos para: " + nombreUser);
+
+        for (Runnable tarea : tareasLimpieza) {
+            try {
+                tarea.run();
+            } catch (Exception ex) {
+                System.err.println("[Seguridad] Error en tarea de limpieza: " + ex.getMessage());
+            }
+        }
+
         SesionUsuario.getInstance().destruir();
+    }
+
+    /**
+     * Destruye de forma estricta la sesión global, libera observadores/recursos y cierra el Shell.
+     */
+    public void destruirSesionYSeguridad() {
+        destruirSesionYSeguridad(false);
+    }
+
+    private void destruirSesionYSeguridad(boolean forzarSalidaProceso) {
+        ejecutarLimpiezaRecursos();
 
         JOptionPane.showMessageDialog(shellView,
                 "Sesión cerrada correctamente.\n" +
-                "Variables de seguridad destruidas mediante SesionUsuario.\n" +
+                "Variables de seguridad destruidas mediante SesionUsuario y recursos liberados.\n" +
                 "¡Hasta pronto!",
                 "Sesión Finalizada",
                 JOptionPane.INFORMATION_MESSAGE);
 
         shellView.dispose();
-        System.exit(0);
+        if (!forzarSalidaProceso && alCerrarSesionCallback != null) {
+            alCerrarSesionCallback.run();
+        } else {
+            System.exit(0);
+        }
     }
 
     public boolean isSesionAutenticada() {

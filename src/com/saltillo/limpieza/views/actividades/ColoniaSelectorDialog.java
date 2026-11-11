@@ -1,6 +1,6 @@
 package com.saltillo.limpieza.views.actividades;
 
-import com.saltillo.limpieza.models.dto.ColoniaDTO;
+import com.saltillo.limpieza.models.entities.Colonia;
 import com.saltillo.limpieza.views.components.RoundedPanel;
 
 import javax.swing.*;
@@ -20,10 +20,10 @@ public class ColoniaSelectorDialog extends JPanel {
     private static final long serialVersionUID = 1L;
 
     private final JTextField txtBusqueda = new JTextField();
-    private final DefaultListModel<ColoniaDTO> modeloResultados = new DefaultListModel<>();
-    private final DefaultListModel<ColoniaDTO> modeloSeleccionadas = new DefaultListModel<>();
-    private final JList<ColoniaDTO> lstResultados = new JList<>(modeloResultados);
-    private final JList<ColoniaDTO> lstSeleccionadas = new JList<>(modeloSeleccionadas);
+    private final DefaultListModel<Colonia> modeloResultados = new DefaultListModel<>();
+    private final DefaultListModel<Colonia> modeloSeleccionadas = new DefaultListModel<>();
+    private final JList<Colonia> lstResultados = new JList<>(modeloResultados);
+    private final JList<Colonia> lstSeleccionadas = new JList<>(modeloSeleccionadas);
     private final JLabel lblResultados = new JLabel();
     private final JLabel lblSeleccionadas = new JLabel();
 
@@ -71,7 +71,7 @@ public class ColoniaSelectorDialog extends JPanel {
         return pnlListas;
     }
 
-    private RoundedPanel crearTarjetaLista(JLabel titulo, JList<ColoniaDTO> lista, JButton boton) {
+    private RoundedPanel crearTarjetaLista(JLabel titulo, JList<Colonia> lista, JButton boton) {
         RoundedPanel tarjeta = new RoundedPanel(16, Color.WHITE, new Color(226, 232, 240));
         tarjeta.setLayout(new BorderLayout(0, 8));
         tarjeta.setBorder(BorderFactory.createEmptyBorder(12, 14, 12, 14));
@@ -83,6 +83,7 @@ public class ColoniaSelectorDialog extends JPanel {
         lista.setFont(new Font("Segoe UI", Font.PLAIN, 12));
         lista.setSelectionMode(ListSelectionModel.MULTIPLE_INTERVAL_SELECTION);
         lista.setFixedCellHeight(26);
+        lista.setCellRenderer(new ColoniaCellRenderer());
         JScrollPane scroll = new JScrollPane(lista);
         scroll.setBorder(BorderFactory.createLineBorder(new Color(226, 232, 240)));
         tarjeta.add(scroll, BorderLayout.CENTER);
@@ -135,13 +136,13 @@ public class ColoniaSelectorDialog extends JPanel {
     // MÉTODOS PÚBLICOS DE VISTA (STRICT MVC)
     // =========================================================================
 
-    public void mostrarResultados(List<ColoniaDTO> colonias) {
+    public void mostrarResultados(List<Colonia> colonias) {
         modeloResultados.clear();
         modeloResultados.addAll(colonias);
         lblResultados.setText(colonias.isEmpty() ? "Sin coincidencias" : "Resultados (" + colonias.size() + ")");
     }
 
-    public void mostrarSeleccionadas(List<ColoniaDTO> colonias) {
+    public void mostrarSeleccionadas(List<Colonia> colonias) {
         modeloSeleccionadas.clear();
         modeloSeleccionadas.addAll(colonias);
         lblSeleccionadas.setText("Colonias elegidas (" + colonias.size() + ")");
@@ -155,11 +156,11 @@ public class ColoniaSelectorDialog extends JPanel {
         return txtBusqueda.getText();
     }
 
-    public List<ColoniaDTO> getResultadosMarcados() {
+    public List<Colonia> getResultadosMarcados() {
         return lstResultados.getSelectedValuesList();
     }
 
-    public List<ColoniaDTO> getSeleccionadasMarcadas() {
+    public List<Colonia> getSeleccionadasMarcadas() {
         return lstSeleccionadas.getSelectedValuesList();
     }
 

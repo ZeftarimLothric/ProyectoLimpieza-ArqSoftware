@@ -22,3 +22,14 @@ sources.txt
 
 # Imágenes de evidencia cargadas en ejecución
 evidencias/
+
+# Configuración local de la base de datos (contiene la contraseña de MySQL)
+config/db.properties
+
+# Archivos locales de SEPOMEX
+/db/CodigosPostales.xls
+/db/Coahuila de Zaragoza.txt
+/db/sepomex_saltillo_local.sql
+
+# Base de datos de prueba local
+/schema_prueba.sql

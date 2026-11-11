@@ -28,6 +28,7 @@ public class ActividadDetalleDTO implements Serializable {
     private final LocalDateTime fechaHora;
     private final String observaciones;
     private final LocalDateTime fechaRealizacion; // null si aún no se realiza
+    private final String titulo;
 
     public ActividadDetalleDTO(int idActividad,
                                int idCuadrilla,
@@ -39,7 +40,7 @@ public class ActividadDetalleDTO implements Serializable {
                                LocalDateTime fechaHora,
                                String observaciones) {
         this(idActividad, idCuadrilla, nombreCuadrilla, colonias, tipoLimpieza,
-                lugarEspecifico, estado, fechaHora, observaciones, null);
+                lugarEspecifico, estado, fechaHora, observaciones, null, null);
     }
 
     public ActividadDetalleDTO(int idActividad,
@@ -52,6 +53,21 @@ public class ActividadDetalleDTO implements Serializable {
                                LocalDateTime fechaHora, 
                                String observaciones,
                                LocalDateTime fechaRealizacion) {
+        this(idActividad, idCuadrilla, nombreCuadrilla, colonias, tipoLimpieza,
+                lugarEspecifico, estado, fechaHora, observaciones, fechaRealizacion, null);
+    }
+
+    public ActividadDetalleDTO(int idActividad,
+                               int idCuadrilla,
+                               String nombreCuadrilla,
+                               List<String> colonias,
+                               String tipoLimpieza,
+                               String lugarEspecifico,
+                               String estado,
+                               LocalDateTime fechaHora,
+                               String observaciones,
+                               LocalDateTime fechaRealizacion,
+                               String titulo) {
         this.idActividad = idActividad;
         this.idCuadrilla = idCuadrilla;
         this.nombreCuadrilla = nombreCuadrilla;
@@ -62,6 +78,18 @@ public class ActividadDetalleDTO implements Serializable {
         this.fechaHora = fechaHora != null ? fechaHora : LocalDateTime.now();
         this.observaciones = observaciones;
         this.fechaRealizacion = fechaRealizacion;
+        this.titulo = (titulo != null && !titulo.trim().isEmpty())
+                ? titulo.trim()
+                : construirTituloPorDefecto(tipoLimpieza, lugarEspecifico);
+    }
+
+    private static String construirTituloPorDefecto(String tipoLimpieza, String lugarEspecifico) {
+        String tipo = (tipoLimpieza != null && !tipoLimpieza.isBlank()) ? tipoLimpieza.trim() : "Actividad de limpieza";
+        if (lugarEspecifico != null && !lugarEspecifico.isBlank()) {
+            String compuesto = tipo + " - " + lugarEspecifico.trim();
+            return compuesto.length() > 100 ? compuesto.substring(0, 100) : compuesto;
+        }
+        return tipo.length() > 100 ? tipo.substring(0, 100) : tipo;
     }
 
     public int getIdActividad() {
@@ -117,6 +145,10 @@ public class ActividadDetalleDTO implements Serializable {
     public String getFechaRealizacionFormateada() {
         if (fechaRealizacion == null) return "";
         return fechaRealizacion.format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm"));
+    }
+
+    public String getTitulo() {
+        return titulo;
     }
 
     @Override

@@ -1,7 +1,7 @@
 package com.saltillo.limpieza.test;
 
 import com.saltillo.limpieza.controllers.ColoniaSelectorController;
-import com.saltillo.limpieza.models.dto.ColoniaDTO;
+import com.saltillo.limpieza.models.entities.Colonia;
 import com.saltillo.limpieza.repositories.MockColoniaRepository;
 import com.saltillo.limpieza.views.actividades.ColoniaSelectorDialog;
 
@@ -21,8 +21,8 @@ public class ColoniaSelectorDemo {
 
     private static void abrir() {
         ColoniaSelectorController controller =
-                new ColoniaSelectorController(new ColoniaSelectorDialog(), new MockColoniaRepository()::buscarPorNombreOCodigoPostal);
-        List<ColoniaDTO> elegidas = new ArrayList<>();
+                new ColoniaSelectorController(new ColoniaSelectorDialog(), new MockColoniaRepository());
+        List<Colonia> elegidas = new ArrayList<>();
 
         JLabel lblElegidas = new JLabel("Sin colonias elegidas");
         lblElegidas.setFont(new Font("Segoe UI", Font.PLAIN, 13));
@@ -36,7 +36,7 @@ public class ColoniaSelectorDemo {
         btnElegir.addActionListener(e -> controller.seleccionar(contenido, elegidas).ifPresent(nuevas -> {
             elegidas.clear();
             elegidas.addAll(nuevas);
-            lblElegidas.setText("<html>" + String.join("<br>", nuevas.stream().map(ColoniaDTO::toString).toList()) + "</html>");
+            lblElegidas.setText("<html>" + String.join("<br>", nuevas.stream().map(Colonia::toString).toList()) + "</html>");
         }));
 
         JFrame ventana = new JFrame("Demo de Colonias - Issue #11");
