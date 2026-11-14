@@ -1,0 +1,258 @@
+```mermaid
+classDiagram
+    direction TB
+
+    %% =========================================================================
+    %% AREA 1: VISTAS (FRONTEND - CAPA DE PRESENTACION SWING)
+    %% =========================================================================
+    namespace VISTAS_FRONTEND {
+        class MainShellView {
+            -JPanel pnlContentHost
+            -CardLayout cardLayout
+            -JButton btnCerrarSesion
+            +mostrarModulo(String nombre) void
+            +setNavegacionListener(ActionListener) void
+        }
+
+        class DashboardView {
+            -JPanel pnlKpis
+            -JTable tblCuadrillas
+            +mostrarKpis(DashboardKpisDTO) void
+            +mostrarResumenCuadrillas(List) void
+            +setRefrescarListener(ActionListener) void
+        }
+
+        class ConsultaActividadesView {
+            -JComboBox cmbCuadrilla
+            -JComboBox cmbEstado
+            -JTable tblResultados
+            +obtenerFiltroActual() FiltroActividadDTO
+            +mostrarResultados(List) void
+        }
+
+        class ActividadListView {
+            -JTable tblActividades
+            +mostrarActividades(List) void
+            +getIdSeleccionado() int
+        }
+
+        class ActividadFormView {
+            -JTextField txtLugar
+            -JComboBox cmbEstado
+            -JTextField txtFechaProgramada
+            -JTextField txtFechaRealizacion
+            +getLugar() String
+            +getEstado() String
+            +mostrarColonias(List) void
+        }
+
+        class EvidenciaPanel {
+            -List~String~ rutasEvidencias
+            +cargarEvidencias(List) void
+            +getEvidencias() List
+        }
+
+        class CatalogosView {
+            -JTabbedPane pestanas
+            +agregarCatalogo(String, JComponent) void
+        }
+
+        class CuadrillaView {
+            -JTable tblCuadrillas
+            -JComboBox cmbSupervisor
+            +mostrarCuadrillas(List) void
+        }
+    }
+
+    %% =========================================================================
+    %% AREA 2: CONTROLADORES (CAPA DE APLICACION Y ORQUESTACION MVC)
+    %% =========================================================================
+    namespace CONTROLADORES_MVC {
+        class MainNavigationController {
+            -MainShellView shellView
+            -boolean confirmacionObligatoria
+            +mostrarDashboard() void
+            +mostrarConsulta() void
+            +mostrarActividades() void
+            +destruirSesionYSeguridad() void
+        }
+
+        class DashboardController {
+            -DashboardView view
+            -IDashboardRepository repository
+            +refrescarMetricas() void
+            +onEvent(ActividadEventDTO) void
+        }
+
+        class ConsultaActividadesController {
+            -ConsultaActividadesView view
+            -IDashboardRepository repository
+            +ejecutarBusqueda() void
+            +onEvent(ActividadEventDTO) void
+        }
+
+        class ActividadController {
+            -IActividadRepository actividadRepo
+            -IEvidenciaRepository evidenciaRepo
+            -ActividadListView listView
+            -ActividadFormView formView
+            +nuevaActividad() void
+            +editarActividad(int) void
+            +guardar() void
+            +eliminar() void
+        }
+
+        class CuadrillaController {
+            -ICuadrillaRepository cuadrillaRepo
+            -CuadrillaView view
+            +guardarCuadrilla() void
+            +asignarIntegrantes() void
+        }
+
+        class LoginController {
+            -LoginView view
+            -IUsuarioRepository repo
+            +intentarLogin() void
+        }
+    }
+
+    %% =========================================================================
+    %% AREA 3: MODELOS, PERSISTENCIA Y PATRONES (BACKEND Y DOMINIO)
+    %% =========================================================================
+    namespace MODELOS_Y_BACKEND {
+        class Actividad {
+            -int idActividad
+            -int idCuadrilla
+            -String tipoLimpieza
+            -String lugarEspecifico
+            -String estado
+            -LocalDateTime fechaProgramada
+            -LocalDateTime fechaRealizacion
+            +getIdActividad() int
+            +getEstado() String
+        }
+
+        class Cuadrilla {
+            -int idCuadrilla
+            -String nombre
+            -int idSupervisor
+            -boolean activo
+            +getIdCuadrilla() int
+            +getNombre() String
+        }
+
+        class Empleado {
+            -int idEmpleado
+            -String nombre
+            -String apellidoPaterno
+            -String puesto
+            -String telefono
+        }
+
+        class Colonia {
+            -int idColonia
+            -String nombre
+            -String codigoPostal
+            -String tipoAsentamiento
+        }
+
+        class ActividadDetalleDTO {
+            -int idActividad
+            -String nombreCuadrilla
+            -List~String~ colonias
+            -String tipoLimpieza
+            -String lugarEspecifico
+            -String estado
+            -LocalDateTime fechaProgramada
+        }
+
+        class DashboardKpisDTO {
+            -int totalActividades
+            -int enProceso
+            -int completadas
+            -int cuadrillasActivas
+        }
+
+        class IActividadRepository {
+            <<interface>>
+            +listar() List~ActividadDetalleDTO~
+            +guardar(ActividadDetalleDTO) int
+            +actualizar(ActividadDetalleDTO) boolean
+            +eliminar(int) boolean
+        }
+
+        class IDashboardRepository {
+            <<interface>>
+            +obtenerKpis() DashboardKpisDTO
+            +obtenerResumenPorCuadrillas() List
+            +buscarActividades(FiltroActividadDTO) List
+        }
+
+        class SqlActividadRepository {
+            +guardar(ActividadDetalleDTO) int
+            +actualizar(ActividadDetalleDTO) boolean
+        }
+
+        class SqlDashboardRepository {
+            +obtenerKpis() DashboardKpisDTO
+            +obtenerResumenPorCuadrillas() List
+        }
+
+        class ConexionBD {
+            -ConexionBD instance$
+            -Connection conexion
+            +getInstance()$ ConexionBD
+            +getConexion() Connection
+            +cerrar() void
+        }
+
+        class SesionUsuario {
+            -SesionUsuario instance$
+            -Usuario usuarioActual
+            +getInstance()$ SesionUsuario
+            +iniciar(Usuario) void
+            +destruir() void
+            +estaActiva() boolean
+        }
+
+        class ActividadEventBus {
+            -ActividadEventBus instance$
+            +getInstance()$ ActividadEventBus
+            +attach(IObserver) void
+            +notifyObservers(ActividadEventDTO) void
+        }
+    }
+
+    %% =========================================================================
+    %% RELACIONES ENTRE AREAS (COMUNICACION MVC ESTRICTA)
+    %% =========================================================================
+    
+    %% Relaciones internas del Modelo
+    Cuadrilla "1" *-- "1" Empleado : supervisor
+    Actividad "1" o-- "1" Cuadrilla : asignada_a
+    Actividad "*" o-- "*" Colonia : atiende_en
+    IActividadRepository <|.. SqlActividadRepository : implementa
+    IDashboardRepository <|.. SqlDashboardRepository : implementa
+    SqlActividadRepository ..> ConexionBD : consulta
+    SqlDashboardRepository ..> ConexionBD : consulta
+
+    %% Comunicación Controlador -> Vista (Actualización y Eventos)
+    MainNavigationController --> MainShellView : controla
+    DashboardController --> DashboardView : actualiza
+    ConsultaActividadesController --> ConsultaActividadesView : actualiza
+    ActividadController --> ActividadListView : actualiza
+    ActividadController --> ActividadFormView : valida_y_despliega
+    CuadrillaController --> CuadrillaView : actualiza
+    ActividadFormView *-- EvidenciaPanel : contiene
+
+    %% Comunicación Controlador -> Backend (Inversión de dependencias y DTOs)
+    DashboardController ..> IDashboardRepository : consume
+    ConsultaActividadesController ..> IDashboardRepository : consume
+    ActividadController ..> IActividadRepository : persiste
+    ActividadController ..> ActividadEventBus : publica_evento
+    DashboardController ..> ActividadEventBus : suscrito_observer
+    ConsultaActividadesController ..> ActividadEventBus : suscrito_observer
+    MainNavigationController ..> SesionUsuario : valida_sesion
+    MainNavigationController ..> ConexionBD : cierra_al_salir
+    LoginController ..> SesionUsuario : inicia_sesion
+```
