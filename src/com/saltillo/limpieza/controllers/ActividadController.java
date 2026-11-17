@@ -87,10 +87,38 @@ public class ActividadController {
         this.formView.setElegirColoniasListener(this::onElegirColoniasSolicitado);
         this.formView.setQuitarColoniasListener(this::onQuitarColoniasSolicitado);
 
+        this.listView.addAncestorListener(new javax.swing.event.AncestorListener() {
+            @Override
+            public void ancestorAdded(javax.swing.event.AncestorEvent event) {
+                refrescarCatalogosFormulario();
+                refrescarLista();
+            }
+
+            @Override
+            public void ancestorRemoved(javax.swing.event.AncestorEvent event) {
+            }
+
+            @Override
+            public void ancestorMoved(javax.swing.event.AncestorEvent event) {
+            }
+        });
+
         refrescarLista();
     }
 
+    public void refrescarCatalogosFormulario() {
+        try {
+            this.formView.poblarCuadrillas(nombresCuadrillasActivas());
+        } catch (Exception ignored) {
+        }
+        try {
+            this.formView.poblarTipos(actividadRepository.listarTiposActividad());
+        } catch (Exception ignored) {
+        }
+    }
+
     public void nuevaActividad() {
+        refrescarCatalogosFormulario();
         idEnEdicion = SIN_ACTIVIDAD;
         coloniasEnEdicion = new ArrayList<>();
         formView.limpiar();
@@ -100,6 +128,7 @@ public class ActividadController {
     }
 
     public void editarActividad(int idActividad) {
+        refrescarCatalogosFormulario();
         ActividadDetalleDTO actividad = actividadRepository.buscarPorId(idActividad);
         if (actividad == null) {
             listView.mostrarError("La actividad seleccionada ya no existe.");

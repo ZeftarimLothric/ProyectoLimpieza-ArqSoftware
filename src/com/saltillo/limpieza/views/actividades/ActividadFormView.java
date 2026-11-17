@@ -1,6 +1,7 @@
 package com.saltillo.limpieza.views.actividades;
 
 import com.saltillo.limpieza.models.entities.Colonia;
+import com.saltillo.limpieza.views.components.DateTimePickerDialog;
 
 import javax.swing.*;
 import java.awt.*;
@@ -27,6 +28,8 @@ public class ActividadFormView extends JPanel {
     private final JTextField txtLugar = new JTextField();
     private final JTextField txtFechaProgramada = new JTextField();
     private final JTextField txtFechaRealizacion = new JTextField();
+    private final JButton btnCalendarioProgramada = new JButton("📅");
+    private final JButton btnCalendarioRealizacion = new JButton("📅");
     private final JTextArea txtDescripcion = new JTextArea(3, 20);
     private final DefaultListModel<Colonia> modeloColonias = new DefaultListModel<>();
     private final JList<Colonia> lstColonias = new JList<>(modeloColonias);
@@ -43,10 +46,37 @@ public class ActividadFormView extends JPanel {
         setBackground(new Color(248, 250, 252));
         setBorder(BorderFactory.createEmptyBorder(16, 20, 16, 20));
 
+        configurarBotonesFecha();
         add(crearCampos(), BorderLayout.NORTH);
         add(evidenciaPanel, BorderLayout.CENTER);
         add(crearBotones(), BorderLayout.SOUTH);
         limpiar();
+    }
+
+    private void configurarBotonesFecha() {
+        configurarBotonCalendario(btnCalendarioProgramada, txtFechaProgramada, "Seleccionar Fecha Programada");
+        configurarBotonCalendario(btnCalendarioRealizacion, txtFechaRealizacion, "Seleccionar Fecha de Realización");
+    }
+
+    private void configurarBotonCalendario(JButton boton, JTextField destino, String tituloModal) {
+        boton.setFont(new Font("Segoe UI Emoji", Font.PLAIN, 12));
+        boton.setFocusPainted(false);
+        boton.setToolTipText("Abrir calendario interactivo");
+        boton.setMargin(new Insets(2, 6, 2, 6));
+        boton.setBackground(new Color(241, 245, 249));
+        boton.addActionListener(e -> {
+            Window padre = SwingUtilities.getWindowAncestor(this);
+            DateTimePickerDialog picker = new DateTimePickerDialog(padre, tituloModal, destino.getText(), destino::setText);
+            picker.setVisible(true);
+        });
+    }
+
+    private JPanel envolverConBotonCalendario(JTextField campo, JButton boton) {
+        JPanel pnl = new JPanel(new BorderLayout(4, 0));
+        pnl.setOpaque(false);
+        pnl.add(campo, BorderLayout.CENTER);
+        pnl.add(boton, BorderLayout.EAST);
+        return pnl;
     }
 
     private JPanel crearCampos() {
@@ -60,8 +90,10 @@ public class ActividadFormView extends JPanel {
         agregarCampo(pnlCampos, g, 0, 0, 1, "Cuadrilla:", cmbCuadrilla);
         agregarCampo(pnlCampos, g, 1, 0, 1, "Tipo de actividad:", cmbTipo);
         agregarCampo(pnlCampos, g, 0, 2, 2, "Lugar específico:", txtLugar);
-        agregarCampo(pnlCampos, g, 0, 4, 1, "Fecha programada (dd/mm/aaaa hh:mm):", txtFechaProgramada);
-        agregarCampo(pnlCampos, g, 1, 4, 1, "Fecha de realización (dd/mm/aaaa hh:mm):", txtFechaRealizacion);
+        agregarCampo(pnlCampos, g, 0, 4, 1, "Fecha programada (dd/mm/aaaa hh:mm):",
+                envolverConBotonCalendario(txtFechaProgramada, btnCalendarioProgramada));
+        agregarCampo(pnlCampos, g, 1, 4, 1, "Fecha de realización (dd/mm/aaaa hh:mm):",
+                envolverConBotonCalendario(txtFechaRealizacion, btnCalendarioRealizacion));
         agregarCampo(pnlCampos, g, 0, 6, 2, "Estado:", cmbEstado);
         agregarCampo(pnlCampos, g, 0, 8, 2, "Colonias atendidas:", crearSeccionColonias());
 
